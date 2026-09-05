@@ -69,8 +69,9 @@
   #battBox{position:relative;}
   #battBox i{background:linear-gradient(90deg,#3ddc84,#ffd23e 55%,#ff5a5f);}
   @media (pointer:coarse){
-    #tl{top:8px;right:8px;width:auto;max-width:236px;font-size:10.5px;padding:5px 9px;}
+    #tl{top:8px;right:8px;width:auto;max-width:236px;font-size:10.5px;padding:5px 9px;background:rgba(11,14,20,.45);}
     #tl .row.vtel{display:none;}
+    #tl .row.vmin{display:none;}
     #battBox{display:none !important;}
   }
   #logLine{position:fixed;bottom:8px;left:50%;transform:translateX(-50%);font-size:12px;color:var(--dim);z-index:6;text-align:center;background:rgba(0,0,0,.4);padding:3px 12px;border-radius:14px;border:1px solid var(--stroke);}
@@ -241,10 +242,10 @@
 <!-- ТЕЛЕМЕТРИЯ -->
 <div id="tl" class="hud box">
   <div class="row"><span class="k">ВЫСОТА</span><span class="v" id="tAlt">0.0 м</span></div>
-  <div class="row"><span class="k">ВЕРТ. СКОРОСТЬ</span><span class="v" id="tVy">0.0 м/с</span></div>
+  <div class="row vmin"><span class="k">ВЕРТ. СКОРОСТЬ</span><span class="v" id="tVy">0.0 м/с</span></div>
   <div class="row vtel"><span class="k">СКОРОСТЬ</span><span class="v" id="tSpd">0.0 м/с</span></div>
-  <div class="row"><span class="k">КРЕН / ТАНГАЖ</span><span class="v" id="tAtt">0° / 0°</span></div>
-  <div class="row"><span class="k">ТЯГА (все винты)</span><span class="v" id="tThr">0%</span></div>
+  <div class="row vmin"><span class="k">КРЕН / ТАНГАЖ</span><span class="v" id="tAtt">0° / 0°</span></div>
+  <div class="row vmin"><span class="k">ТЯГА (все винты)</span><span class="v" id="tThr">0%</span></div>
   <div class="row vtel"><span class="k">ОБОРОТЫ</span><span class="v" id="tRpm">0</span></div>
   <div class="row vtel"><span class="k">ВАСА</span><span class="v" id="tMass">1.05 кг</span></div>
   <div class="row"><span class="k">СТАТУС</span><span class="v" id="tState">—</span></div>
