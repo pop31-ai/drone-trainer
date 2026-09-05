@@ -436,7 +436,7 @@ for (let i=0;i<6;i++){
 const pad = new THREE.Mesh(new THREE.CylinderGeometry(2.4,2.4,0.18,40), new THREE.MeshStandardMaterial({color:0xffd23e, roughness:.7}));
 pad.position.y=0.09; pad.receiveShadow=true; scene.add(pad);
 const padMark = new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,0.04,20), new THREE.MeshStandardMaterial({color:0xe11, emissive:0x440000}));
-padMark.position.y=0.16; scene.add(padMark);
+padMark.position.y=0.155; scene.add(padMark);
 
 /* ==================== ДРОН ==================== */
 function buildDrone(){
@@ -973,7 +973,7 @@ function launchMission(Mi){
   gates.length=0;
   obstacles.length=0;
   if(Mi.gates) Mi.gates.forEach((g,i)=>addGate(g.x,g.y,g.z,g.rotY||0,g.col||CFG.colors[i%CFG.colors.length],g.label||''));
-  if(!Mi.gates||!Mi.gates.length){ pad.position.set(0,0.09,0); padMark.position.set(0,0.16,0); }
+  if(!Mi.gates||!Mi.gates.length){ pad.position.set(0,0.09,0); padMark.position.set(0,0.155,0); }
   if (Mi.name==='Слалом'){
     addObstacle(24,1.6,6,1.6); addObstacle(30,1.2,-6,1.8); addObstacle(2,1.5,16,2.0);
   }
