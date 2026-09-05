@@ -46,7 +46,8 @@ python -m http.server 8123
 На push автоматически запускаются:
 
 1. `test-simulation` — симуляция физики+автопилота: все миссии и программы должны пройти (WIN), штормовой ветер ожидаемо TIMEOUT.
-2. `build-brochure` — сборка BPMN-схем и PDF/HTML-брошюры в `bpmn/out/`.
+2. `build-brochure` — сборка BPMN-схем, PDF/HTML-брошюры и PDF-инструкций в `bpmn/out/`.
+3. `build-screenshot-brochure` — съёмка реальных скриншотов игры (headless Chromium) и сборка `Брошюра_скриншоты_дрона.pdf`.
 
 Запустить вручную: **Actions → CI → Run workflow**.
 
@@ -54,6 +55,8 @@ python -m http.server 8123
 
 - Генератор BPMN-схем и брошюры: `bpmn/gen_brochure.py`
 - Генератор PDF-инструкций (с иллюстрациями и страницами для заметок): `bpmn/gen_manual.py`
+- Съёмка скриншотов игры (headless WebGL): `bpmn/shots.py`, брошюра скриншотов: `bpmn/gen_brochure_shots.py`
 - Готовая брошюра: [`bpmn/out/Брошюра_4_испытания_дрона_BPMN.pdf`](bpmn/out/Брошюра_4_испытания_дрона_BPMN.pdf) и [`broshura.html`](bpmn/out/broshura.html)
+- Брошюра-скриншоты (9 стр., реальные кадры игры): [`bpmn/out/Брошюра_скриншоты_дрона.pdf`](bpmn/out/Брошюра_скриншоты_дрона.pdf)
 - Инструкция для десктопа: [`bpmn/out/Инструкция_десктоп_управление_дроном.pdf`](bpmn/out/Инструкция_десктоп_управление_дроном.pdf)
 - Инструкция для планшета: [`bpmn/out/Инструкция_планшет_управление_дроном.pdf`](bpmn/out/Инструкция_планшет_управление_дроном.pdf)

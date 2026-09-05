@@ -53,3 +53,38 @@ jobs:
         with:
           name: drone-brochure
           path: bpmn/out
+
+  build-screenshot-brochure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps (incl. Playwright chromium for headless screenshots)
+        run: |
+          pip install --quiet matplotlib reportlab pillow playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Serve trainer locally for screenshots
+        run: |
+          python -m http.server 8123 --bind 127.0.0.1 > /tmp/httpd.log 2>&1 &
+          sleep 3
+
+      - name: Capture in-game screenshots (headless WebGL via SwiftShader)
+        run: |
+          python bpmn/shots.py
+
+      - name: Build screenshot brochure PDF
+        run: |
+          python bpmn/gen_brochure_shots.py
+
+      - name: Upload screenshot brochure artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: drone-screenshot-brochure
+          path: bpmn/out
