@@ -1,0 +1,1612 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D-ТРЕНАЖЁР ДРОНА · физика квадрокоптера</title>
+<style>
+  :root{
+    --panel: rgba(10,14,22,.86);
+    --panel2: rgba(16,22,34,.9);
+    --stroke: rgba(255,255,255,.12);
+    --ok: #3ddc84; --warn:#ffd23e; --bad:#ff5a5f; --cyan:#4fc3f7; --txt:#e8eef5; --dim:#9fb2c6;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100%;height:100%;overflow:hidden;background:#0b0e14;font-family:system-ui,Segoe UI,Roboto,sans-serif;color:var(--txt);}
+  #cv{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:crosshair;outline:none;}
+  .hud{position:fixed;pointer-events:none;z-index:5;}
+  .box{background:var(--panel);border:1px solid var(--stroke);border-radius:10px;padding:8px 10px;backdrop-filter:blur(4px);}
+
+  /* ---------- верхние панели ---------- */
+  #topBar{top:8px;left:8px;display:flex;gap:8px;align-items:flex-start;}
+  #mission{width:300px;}
+  #mission .mtitle{font-weight:800;color:var(--cyan);font-size:14px;letter-spacing:.3px;}
+  #mission .mdesc{font-size:12px;color:var(--dim);line-height:1.5;margin-top:3px;}
+  #mission .st{font-size:11px;color:var(--txt);margin-top:6px;line-height:1.5;}
+  #mission .st b{color:var(--ok);font-weight:700;}
+  #mission .st.done b{color:var(--ok);}
+  #mission .st b.hl{color:var(--warn);}
+  #tasklist{margin-top:6px;border-top:1px dashed var(--stroke);padding-top:6px;}
+  #tasklist .t{font-size:11px;margin:2px 0;color:var(--dim);display:flex;gap:6px;align-items:center;}
+  #tasklist .t.cur{color:#fff;font-weight:700;}
+  #tasklist .t.ok{color:var(--ok);}
+  #tasklist .t:before{content:"○";}
+  #tasklist .t.cur:before{content:"►";color:var(--warn);}
+  #tasklist .t.ok:before{content:"✔";color:var(--ok);}
+  #btnPilot{pointer-events:auto;cursor:pointer;align-self:flex-start;background:var(--panel);border:1px solid var(--stroke);color:var(--dim);border-radius:10px;padding:8px 12px;font-size:11px;font-weight:800;letter-spacing:.6px;transition:.15s;}
+  #btnPilot:hover{border-color:var(--cyan);color:#fff;}
+  #btnPilot.p1{background:rgba(79,195,247,.18);border-color:#4fc3f7;color:#4fc3f7;}
+  #btnPilot.p2{background:rgba(61,220,132,.16);border-color:#3ddc84;color:#3ddc84;}
+  #btnHelp{pointer-events:auto;cursor:pointer;align-self:flex-start;width:30px;height:30px;background:var(--panel);border:1px solid var(--stroke);color:var(--warn);border-radius:50%;font-size:14px;font-weight:800;transition:.15s;}
+  #btnHelp:hover{border-color:var(--warn);color:#fff;}
+  #recs{width:300px;font-size:11px;line-height:1.6;}
+  #recs .rh{font-weight:800;color:var(--warn);font-size:11px;letter-spacing:.5px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;}
+  #recs #recsBody{list-style:none;margin:0;padding:0;}
+  #recs li{padding:0 0 2px 12px;position:relative;color:var(--txt);}
+  #recs li:before{content:"›";position:absolute;left:0;color:var(--cyan);font-weight:800;}
+  #recs li b{color:#fff;}
+  #cvAim{position:fixed;inset:0;pointer-events:none;z-index:34;display:none;}
+  #cvAim .mk{position:absolute;left:0;top:0;width:26px;height:26px;margin:-13px 0 0 -13px;}
+  #cvAim .mk:before,#cvAim .mk:after{content:"";position:absolute;background:#3ddc84;box-shadow:0 0 6px rgba(61,220,132,.9);}
+  #cvAim .mk:before{left:50%;top:0;width:2px;height:26px;margin-left:-1px;}
+  #cvAim .mk:after{top:50%;left:0;height:2px;width:26px;margin-top:-1px;}
+  #cvAim .cross{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;opacity:.6;}
+  #cvAim .cross:before,#cvAim .cross:after{content:"";position:absolute;background:#fff;}
+  #cvAim .cross:before{left:50%;top:0;width:1px;height:100%;}
+  #cvAim .cross:after{top:50%;left:0;height:1px;width:100%;}
+  #cvAim .tag{position:absolute;left:50%;bottom:12%;transform:translateX(-50%);font-size:12px;font-weight:800;letter-spacing:2px;color:rgba(61,220,132,.9);text-shadow:0 0 8px rgba(61,220,132,.6);}
+  #tasklist .t.fail:before{content:"✖";color:var(--bad);}
+
+  #tl{top:8px;right:8px;width:236px;text-align:right;}
+  #tl .row{display:flex;justify-content:space-between;font-size:12px;margin:2px 0;}
+  #tl .row .k{color:var(--dim);}
+  #tl .row .v{font-variant-numeric:tabular-nums;font-weight:700;}
+  #tl .row .v.good{color:var(--ok);}
+  #tl .row .v.bad{color:var(--bad);}
+  #tl .row .v.warn{color:var(--warn);}
+  #telBar{height:6px;border-radius:4px;background:rgba(255,255,255,.1);margin-top:6px;overflow:hidden;}
+  #telBar i{display:block;height:100%;width:0%;background:var(--ok);border-radius:4px;transition:width .08s linear;}
+  #battBox{position:relative;}
+  #battBox i{background:linear-gradient(90deg,#3ddc84,#ffd23e 55%,#ff5a5f);}
+  #logLine{position:fixed;bottom:8px;left:50%;transform:translateX(-50%);font-size:12px;color:var(--dim);z-index:6;text-align:center;background:rgba(0,0,0,.4);padding:3px 12px;border-radius:14px;border:1px solid var(--stroke);}
+
+  /* ---------- научная панель ---------- */
+  #science{top:270px;left:8px;width:300px;font-size:11px;line-height:1.55;}
+  #science .h{font-weight:800;color:var(--cyan);margin-bottom:4px;font-size:12px;display:flex;align-items:center;gap:6px;}
+  #science .latexc{color:var(--warn);font-weight:700;background:rgba(255,210,62,.08);border-radius:4px;padding:0 4px;}
+  #science .txt{color:var(--txt);}
+  #science .src{color:var(--dim);margin-top:4px;font-size:10px;}
+
+  /* ---------- ПУЛЬТ ---------- */
+  #rc{position:fixed;right:8px;bottom:8px;width:238px;pointer-events:none;z-index:6;}
+  #rc .inner{background:linear-gradient(160deg,#1a2332,#10161f);border:1px solid var(--stroke);border-radius:16px;padding:10px 12px 12px;}
+  #rc .rct{text-align:center;font-size:10px;letter-spacing:1.5px;color:var(--dim);font-weight:700;}
+  #rc .grip{height:64px;position:relative;border-radius:8px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.08);margin-top:6px;}
+  #rc .stick{position:absolute;width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#3a4b63,#16202e);border:1px solid rgba(255,255,255,.25);left:50%;top:50%;margin:-17px 0 0 -17px;box-shadow:0 4px 12px rgba(0,0,0,.6);}
+  #rc .stick .g{position:absolute;inset:11px;border-radius:50%;background:#4fc3f7;opacity:.85;}
+  #rc .sLab{position:absolute;font-size:9px;color:var(--dim);padding:1px 4px;border-radius:4px;background:rgba(0,0,0,.4);white-space:nowrap;}
+  #rc .sLab.ax{top:2px;right:4px;}
+  #rc .sLab.bx{bottom:2px;left:2px;}
+  #rcWrap{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+
+  #piks{position:fixed;left:8px;bottom:8px;width:270px;pointer-events:none;z-index:6;}
+  #piks .inner{background:var(--panel2);border:1px solid var(--stroke);border-radius:12px;padding:8px 10px;font-size:11px;}
+  #piks .ph{font-weight:800;color:#ffd23e;margin-bottom:4px;font-size:11px;letter-spacing:.5px;}
+  #piks table{width:100%;border-collapse:collapse;}
+  #piks td{padding:1px 2px;font-size:10.5px;color:var(--dim);}
+  #piks td b{color:#fff;font-weight:700;font-variant-numeric:tabular-nums;}
+  #piks .rowh{color:var(--cyan);font-weight:700;font-size:10px;}
+
+  /* ---------- стартовый экран ---------- */
+  #start{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:radial-gradient(1000px 600px at 50% 35%,#131a26 0%,#080b11 75%);}
+  #start .card{max-width:640px;width:92%;background:rgba(255,255,255,.04);border:1px solid var(--stroke);border-radius:18px;padding:28px 34px;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.6);}
+  #start h1{color:#ffd23e;font-size:30px;letter-spacing:.5px;}
+  #start .sub{color:var(--dim);margin-top:6px;font-size:13.5px;}
+  #start .col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0;text-align:left;}
+  #start .col .blk{background:rgba(255,255,255,.05);border:1px solid var(--stroke);border-radius:10px;padding:10px 12px;}
+  #start .col .blk b{color:#4fc3f7;font-size:12px;}
+  #start .col .blk p{font-size:11.5px;color:var(--txt);line-height:1.55;margin-top:4px;}
+  #start .col .blk p kbd{background:#222b3a;border:1px solid #3b465c;border-radius:4px;padding:0 5px;font-family:inherit;font-size:10.5px;}
+  #start .go{margin-top:8px;display:inline-block;font-size:14px;font-weight:800;color:#0b0e14;background:#3ddc84;border:none;border-radius:10px;padding:12px 30px;cursor:pointer;transition:.15s;}
+  #start .go:hover{background:#ffe14d;transform:scale(1.03);}
+  #start .msel{display:flex;gap:8px;justify-content:center;margin:14px 0 4px;}
+  #start .msel button{background:transparent;border:1px solid var(--stroke);color:var(--dim);border-radius:8px;padding:6px 10px;font-size:11px;cursor:pointer;transition:.12s;}
+  #start .msel button:hover{color:#fff;border-color:#4fc3f7;}
+  #start .msel button.sel{background:#4fc3f7;border-color:#4fc3f7;color:#06121d;font-weight:700;}
+  #start .note{color:var(--dim);font-size:10.5px;margin-top:10px;line-height:1.6;}
+
+  /* ---------- конструктор ПОЛЁТНЫХ ЗАДАНИЙ ---------- */
+  #prog{border-top:1px dashed var(--stroke);margin-top:16px;padding-top:14px;text-align:left;}
+  #prog .ph{font-weight:800;color:#9c88ff;font-size:12px;letter-spacing:.6px;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  #prog .ph select, #prog .ph input{background:#141b28;border:1px solid var(--stroke);color:#fff;border-radius:6px;padding:3px 6px;font-size:11px;}
+  #prog .ph input[type=text]{width:130px;}
+  #prog .ph label{font-size:10px;color:var(--dim);font-weight:600;}
+  #progHead{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;}
+  #progRows{margin:8px 0;max-height:150px;overflow:auto;border:1px solid var(--stroke);border-radius:8px;padding:4px;}
+  .prNo{color:var(--dim);font-size:11px;text-align:center;padding:10px 0;}
+  .prRow{display:grid;grid-template-columns:repeat(6,52px) 30px;gap:4px;margin:3px 0;align-items:center;}
+  .prRow .hdr{font-size:9px;color:var(--dim);text-align:center;font-weight:700;}
+  .prRow input{background:#141b28;border:1px solid var(--stroke);border-radius:5px;color:#fff;font-size:11px;padding:2px 3px;text-align:center;width:100%;}
+  .prRow .lb{width:100%!important;}
+  .prRow .del{background:none;border:none;color:var(--bad);font-size:13px;cursor:pointer;font-weight:800;}
+  .prBtn{background:rgba(156,136,255,.16);border:1px solid #9c88ff;color:#cabdff;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;transition:.12s;}
+  .prBtn:hover{background:rgba(156,136,255,.3);color:#fff;}
+  .prBtn.run{background:#3ddc84;border-color:#3ddc84;color:#0b0e14;}
+  .prBtn.run:hover{background:#ffe14d;border-color:#ffe14d;}
+  .prBar{display:flex;gap:8px;justify-content:space-between;margin-top:8px;flex-wrap:wrap;}
+
+  /* ---------- сообщения о падении ---------- */
+  #msg{position:fixed;left:50%;top:34%;transform:translate(-50%,-50%);z-index:40;text-align:center;font-size:44px;font-weight:900;letter-spacing:1px;color:#fff;text-shadow:0 4px 24px rgba(0,0,0,.8);opacity:0;pointer-events:none;}
+  #msg.bad{color:#ff5a5f;}
+  #msg.ok{color:#3ddc84;}
+  #msg.warn{color:#ffd23e;}
+  #msg small{display:block;font-size:15px;font-weight:600;color:var(--dim);margin-top:6px;text-shadow:none;}
+  #flash{position:fixed;inset:0;background:#ff2222;opacity:0;pointer-events:none;z-index:30;}
+  #vign{position:fixed;inset:0;pointer-events:none;z-index:4;box-shadow:inset 0 0 140px rgba(0,0,0,.45);}
+
+  #checkboxhint{position:fixed;right:8px;top:150px;width:236px;font-size:10.5px;color:var(--dim);text-align:right;line-height:1.6;}
+  #checkboxhint kbd{background:#222b3a;border:1px solid #3b465c;border-radius:4px;padding:0 4px;font-size:10px;}
+
+  /* ---------- HUD-указатель следующего кольца ---------- */
+  #navhud{position:fixed;left:50%;top:10px;transform:translateX(-50%);display:flex;align-items:center;gap:9px;background:rgba(13,20,32,.85);border:1px solid var(--stroke);border-radius:20px;padding:5px 14px;font-size:12px;color:var(--txt);z-index:22;opacity:0;transition:opacity .3s;pointer-events:none;backdrop-filter:blur(2px);}
+  #navhud .ar{display:inline-block;font-size:15px;color:#4fc3f7;transition:transform .08s linear;}
+  #navhud.near .ar{color:#ffd23e;animation:nvPulse 0.7s infinite;}
+  @keyframes nvPulse{0%,100%{opacity:1}50%{opacity:.45}}
+  #navhud .in{font-variant-numeric:tabular-nums;letter-spacing:.3px;}
+  @media (max-width:1300px){ #science{display:none;} #piks{width:220px;} }
+  @media (max-width:1100px){ #piks{display:none;} #rc{width:210px;} #mission{width:260px;} }
+
+  /* ---------- туториал ---------- */
+  #tut{position:fixed;inset:0;z-index:60;background:rgba(4,8,14,.72);display:none;align-items:center;justify-content:center;}
+  #tut.open{display:flex;}
+  #tut .card{max-width:520px;width:90%;background:#0d1420;border:1px solid var(--stroke);border-radius:16px;padding:22px 26px;box-shadow:0 30px 90px rgba(0,0,0,.7);}
+  #tut h3{color:#9c88ff;font-size:16px;margin-bottom:4px;letter-spacing:.5px;}
+  #tut .st{color:var(--dim);font-size:11px;margin-bottom:10px;}
+  #tut .step{display:none;}
+  #tut .step.on{display:block;}
+  #tut .step b{color:#4fc3f7;}
+  #tut .step p{font-size:13px;line-height:1.7;margin:6px 0;}
+  #tut .step kbd{background:#222b3a;border:1px solid #3b465c;border-radius:4px;padding:0 5px;font-size:11.5px;}
+  #tut .nav{display:flex;justify-content:space-between;align-items:center;margin-top:18px;gap:10px;}
+  #tut .nav button{background:rgba(156,136,255,.16);border:1px solid #9c88ff;color:#cabdff;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;}
+  #tut .nav button:disabled{opacity:.35;cursor:default;}
+  #tut .nav button:hover:not(:disabled){background:rgba(156,136,255,.32);color:#fff;}
+  #tut .dots{display:flex;gap:6px;align-items:center;}
+  #tut .dots i{width:8px;height:8px;border-radius:50%;background:#2a3547;display:block;}
+  #tut .dots i.on{background:#9c88ff;}
+  /* рекорды */
+  #recBox{margin:10px 0 0;padding:8px 12px;background:rgba(255,255,255,.045);border:1px dashed var(--stroke);border-radius:10px;font-size:11px;color:var(--dim);text-align:left;line-height:1.7;}
+  #recBox b{color:#ffd23e;}
+  #recBox .empty{color:#4a5470;font-style:italic;}
+  .prog{margin:10px 0 0;padding:10px 12px;background:rgba(255,255,255,.045);border:1px dashed var(--stroke);border-radius:10px;font-size:11px;color:var(--dim);text-align:left;line-height:1.7;}
+  .prog .ph{font-weight:800;color:#4fc3f7;font-size:11px;letter-spacing:.6px;}
+  .prog .pstats{margin:6px 0 4px;}
+  .prog .pstats b{color:#fff;}
+  .prog .plist{max-height:100px;overflow:auto;font-size:10.5px;border-top:1px solid rgba(255,255,255,.06);padding:6px 2px 2px;margin-bottom:8px;}
+  .prog .hf{display:flex;gap:8px;align-items:baseline;white-space:nowrap;}
+  .prog .hf .tm{color:#4a5470;min-width:38px;font-variant-numeric:tabular-nums;}
+  .prog .hf.w .mn{color:#3ddc84;}
+  .prog .hf.f .mn{color:#ff5a5f;}
+  .prog .hf .mo{color:var(--warn);font-size:10px;}
+  .prog .empty{color:#4a5470;font-style:italic;}
+  @media (max-width:640px){ .prog .hf{white-space:normal;} }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="vign"></div>
+<div id="flash"></div>
+<div id="cvAim"><div class="mk"></div><div class="cross"></div><div class="tag" id="cvTag">CV-ПИЛОТ</div></div>
+<div id="navhud"><span class="ar" id="navArr">▲</span><span class="in" id="navInf">—</span></div>
+
+<!-- МИССИЯ -->
+<div id="topBar" class="hud">
+  <div id="mission" class="box">
+    <div class="mtitle" id="mTitle">Миссия</div>
+    <div class="mdesc" id="mDesc"></div>
+    <div id="tasklist"></div>
+  </div>
+  <div id="recs" class="box">
+    <div class="rh">РЕКОМЕНДАЦИИ ПО ПРОГРАММЕ</div>
+    <ul id="recsBody"></ul>
+  </div>
+  <button id="btnPilot" title="Переключить автопилот (V): ручной → АВТО → CV-АВТО">РУЧНОЙ</button>
+  <button id="btnHelp" title="Как летать? (мини-туториал)">?</button>
+</div>
+
+<!-- ТЕЛЕМЕТРИЯ -->
+<div id="tl" class="hud box">
+  <div class="row"><span class="k">ВЫСОТА</span><span class="v" id="tAlt">0.0 м</span></div>
+  <div class="row"><span class="k">ВЕРТ. СКОРОСТЬ</span><span class="v" id="tVy">0.0 м/с</span></div>
+  <div class="row"><span class="k">СКОРОСТЬ</span><span class="v" id="tSpd">0.0 м/с</span></div>
+  <div class="row"><span class="k">КРЕН / ТАНГАЖ</span><span class="v" id="tAtt">0° / 0°</span></div>
+  <div class="row"><span class="k">ТЯГА (все винты)</span><span class="v" id="tThr">0%</span></div>
+  <div class="row"><span class="k">ОБОРОТЫ</span><span class="v" id="tRpm">0</span></div>
+  <div class="row"><span class="k">ВАСА</span><span class="v" id="tMass">1.05 кг</span></div>
+  <div class="row"><span class="k">СТАТУС</span><span class="v" id="tState">—</span></div>
+  <div id="telBar"><i id="thrBar"></i></div>
+  <div id="battBox" class="row"><span class="k">АККУМУЛЯТОР</span><span class="v" id="tBatt">100%</span></div>
+</div>
+
+<div id="checkboxhint" class="hud">
+  <kbd>Enter</kbd> рестарт · <kbd>B</kbd> вооружить моторы · <kbd>H</kbd> автовысота · <kbd>C</kbd> камера · <kbd>T</kbd> силы · <kbd>N</kbd> наука · <kbd>X</kbd> ветер · <kbd>V</kbd> автопилот АВТО/CV · <kbd>P</kbd> пауза
+</div>
+
+<!-- НАУКА -->
+<div id="science" class="hud box">
+  <div class="h">⚛ НАУКА ПОЛЁТА <span style="color:var(--dim);font-weight:400;font-size:10px">(N — автолистание)</span></div>
+  <div id="scTxt" class="txt"></div>
+  <div id="scSrc" class="src"></div>
+</div>
+
+<!-- ПУЛЬТ -->
+<div id="rc" class="hud">
+  <div class="inner">
+    <div class="rct">ПУЛЬТ ПИЛОТА · MODE 2</div>
+    <div id="rcWrap">
+      <div class="grip" id="gL"><div class="stick" id="stL"><div class="g"></div></div>
+        <div class="sLab ax">ГАЗ ▲▼</div><div class="sLab bx">РЫСК ◄►</div>
+      </div>
+      <div class="grip" id="gR"><div class="stick" id="stR"><div class="g"></div></div>
+        <div class="sLab ax">ТАНГАЖ ▲▼</div><div class="sLab bx">КРЕН ◄►</div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:10px;color:var(--dim);margin-top:6px;">ЛЕВЫЙ СТИК · ПРАВЫЙ СТИК</div>
+  </div>
+</div>
+
+<!-- ПОДСКАЗКИ ПО КЛАВИШАМ -->
+<div id="piks" class="hud"><div class="inner">
+  <div class="ph">КЛАВИШИ = СТИКИ ПУЛЬТА</div>
+  <table>
+    <tr><td class="rowh">ЛЕВЫЙ СТИК</td><td class="rowh">ПРАВЫЙ СТИК</td></tr>
+    <tr><td>▲▼ <b id="kThr">Стрелки</b> — ГАЗ</td><td>▲▼ <b>W / S</b> — ТАНГАЖ</td></tr>
+    <tr><td>◄► <b>Стрелки</b> — РЫСК</td><td>◄► <b>A / D</b> — КРЕН</td></tr>
+  </table>
+</div></div>
+
+<!-- СТАРТ -->
+<div id="start">
+  <div class="card">
+    <h1>3D-ТРЕНАЖЁР ДРОНА</h1>
+    <div class="sub">Физически адекватный квадрокоптер: ПИД-регулятор, тяга винтов, инерция, сопротивление воздуха</div>
+    <div class="msel" id="missionSel">
+      <button data-i="0" class="sel">✈ 1. Взлёт+зависание</button>
+      <button data-i="1">◎ 2. Кольца</button>
+      <button data-i="2">▣ 3. Посадка</button>
+      <button data-i="3">S 4. Слалом</button>
+    </div>
+
+    <div id="recBox">
+      <span class="empty">Пока нет рекордов — пройдите миссию!</span>
+    </div>
+
+    <div class="prog">
+      <div class="ph">ПРОГРЕСС ТРЕНИРОВОК</div>
+      <div class="pstats" id="progStats"></div>
+      <div class="plist" id="progList"></div>
+      <button class="prBtn" id="btnCopyRep">📋 Копировать отчёт</button>
+    </div>
+
+    <div id="prog">
+      <div class="ph">
+        ПОЛЁТНЫЕ ЗАДАНИЯ · конструктор программ
+      </div>
+      <div id="progHead">
+        <input type="text" id="progName" placeholder="Название программы" value="">
+        <select id="progPreset">
+          <option value="">Пресеты…</option>
+          <option value="Круг">Круг</option>
+          <option value="Квадрат">Квадрат</option>
+          <option value="Спираль">Спираль</option>
+        </select>
+        <button class="prBtn" id="btnProgLoad" title="Загрузить последнюю сохранённую программу">Загрузить</button>
+      </div>
+      <div id="progRows"></div>
+      <div class="prBar">
+        <button class="prBtn" id="btnProgAdd">+ Ворота</button>
+        <button class="prBtn" id="btnProgSave">Сохранить</button>
+        <span style="font-size:10px;color:var(--dim);align-self:center">колонки: X, Z, высота, поворот(°), метка</span>
+      </div>
+      <div class="prBar">
+        <button class="prBtn run" id="btnProgRun">▶ ЗАПУСТИТЬ ЗАДАНИЕ</button>
+      </div>
+    </div>
+    <div class="col">
+      <div class="blk"><b>Тяга</b><p><kbd>↑</kbd> газ вверх (больше тяга ↑), <kbd>↓</kbd> вниз. Слишком мало — падаете. Газ = «лифт».</p></div>
+      <div class="blk"><b>Направление</b><p><kbd>W/S</kbd> тангаж (вперёд/назад), <kbd>A/D</kbd> крен (вбок), <kbd>←/→</kbd> рыск (поворот вокруг вертикали).</p></div>
+      <div class="blk"><b>Первый полёт</b><p>Вооружите моторы <kbd>B</kbd> → плавно поднимите газ до ~50%, затем <kbd>W</kbd> для разгона вперёд.</p></div>
+      <div class="blk"><b>Пусть падает</b><p>Дрон падает при нулевом газе, «клюёт» при резкой тяге, переворачивается при грубой посадке — всё как в жизни.</p></div>
+    </div>
+    <div class="note">Миссии проваливаются при: ударе о землю/препятствие на скорости, перевороте при посадке, вылете за зону. Смотрите научную панель слева.</div>
+    <button class="go" id="btnGo">ПОЕХАЛИ →</button>
+  </div>
+</div>
+
+<div id="msg"></div>
+<div id="logLine"></div>
+
+<!-- ТУТОРИАЛ -->
+<div id="tut">
+  <div class="card">
+    <h3>МИНИ-ТУТОРИАЛ</h3>
+    <div class="st" id="tutSt">Шаг 1 из 4</div>
+    <div class="step on"><p><b>Взлёт.</b> Вооружите моторы <kbd>B</kbd>, затем плавно добавьте газ <kbd>↑</kbd> до ~50% — дрон зависнет.<br>Мало газа — падает: газ это «лифт», а не скорость.</p></div>
+    <div class="step"><p><b>Управление.</b> <kbd>W / S</kbd> — вперёд/назад (тангаж), <kbd>A / D</kbd> — вбок (крен), <kbd>← / →</kbd> — поворот (рыск).<br>Движение = наклон корпуса: при <kbd>W</kbd> дрон наклоняется и летит вперёд по ходу носа.</p></div>
+    <div class="step"><p><b>Помощники.</b> <kbd>H</kbd> — автовысота 4 м (комфорт новичкам).<br><kbd>V</kbd> — автопилот: РУЧНОЙ → АВТО → CV-АВТО (кнопка справа вверху).<br><kbd>X</kbd> — ветер, <kbd>P</kbd> — пауза, <kbd>C</kbd> — камера.</p></div>
+    <div class="step"><p><b>Миссии.</b> Пролетайте сквозь кольца по списку задач сверху-слева.<br><kbd>Enter</kbd> — рестарт. На посадке мягко убирайте газ — жёсткий удар = <b>крушение</b>.<br>Рекорды времени сохраняются и видны на стартовом экране.</p></div>
+    <div class="nav">
+      <button id="tutPrev" disabled>← Назад</button>
+      <div class="dots" id="tutDots"></div>
+      <button id="tutNext">Дальше →</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+/* =========================================================================
+ *  3D-ТРЕНАЖЁР ДРОНА  —  «строго адекватная» модель квадрокоптера
+ *  ---------------------------------------------------------------
+ *  ФИЗИКА (научная база, см. панель «НАУКА ПОЛЁТА»):
+ *   • Тяга винта  F = C_T·ρ·n²·D⁴  (аэродинамика ротора, C_T≈0.1)
+ *   • Суммарная сила = тяга(ось +Z тела) − m·g (вес) − C_d·V (сопротивление)
+ *   • Момент от разности тяг моторов  τ = r × F  ⇒  управление крен/тангаж
+ *   • Реактивный момент винтов (закон сохранения момента импульса) ⇒ рыскание
+ *   • Двухуровневый контроллер: УГЛЫ → скорости вращения → моменты
+ *     (внешний контур как «крен-тангаж» ПД, внутренний — демпфирование)
+ *   • Моторы не мгновенны:  τ_м = 0.08 c  (переходные процессы, «взлетает»)
+ * ========================================================================= */
+
+const CV = document.getElementById('cv');
+const renderer = new THREE.WebGLRenderer({canvas:CV, antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x8fb8e8);
+scene.fog = new THREE.Fog(0x8fb8e8, 120, 300);
+
+const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 800);
+camera.position.set(6, 4, 8);
+
+/* ---------- свет ---------- */
+scene.add(new THREE.HemisphereLight(0xcfe8ff, 0x3a5a3a, 0.75));
+const sun = new THREE.DirectionalLight(0xfff3dd, 1.05);
+sun.position.set(60, 90, 30);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left=-80; sun.shadow.camera.right=80;
+sun.shadow.camera.top=80; sun.shadow.camera.bottom=-80;
+sun.shadow.camera.far=260;
+scene.add(sun);
+scene.add(new THREE.AmbientLight(0xffffff, 0.18));
+
+/* ==================== СЦЕНА ==================== */
+/* Земля: сетка + «поле» */
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(400, 400),
+  new THREE.MeshStandardMaterial({color:0x6f9a4f, roughness:1})
+);
+ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
+const grid = new THREE.GridHelper(200, 80, 0x2f4d2a, 0x3c5a34);
+grid.position.y = 0.02; scene.add(grid);
+
+function addBox(x,y,z,w,h,d,col,shadow){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color:col,roughness:.9}));m.position.set(x,y,z);m.castShadow=shadow!==false;scene.add(m);return m;}
+function addCyl(x,y,z,r,h,col){const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,18),new THREE.MeshStandardMaterial({color:col,roughness:.9}));m.position.set(x,y,z);m.castShadow=true;scene.add(m);return m;}
+
+for (let i=0;i<10;i++){
+  const a = i*0.62, r = 30+i*7;
+  const o={x:Math.cos(a)*r, z:Math.sin(a)*r};
+  if (Math.abs(o.x)<8 && Math.abs(o.z)<8) continue;
+  addCyl(o.x, 1.0, o.z, 0.7, 2, 0x5a7040); addCyl(o.x, 2.4, o.z, 2.6, 2.4, 0x3f5c33);
+}
+for (let i=0;i<6;i++){
+  const x=-45+i*18, ob=addBox(x, 4, -55, 8, 8, 10, 0x8a93a8);
+  addBox(x, 1, -55, 10, 2, 12, 0x687184);
+}
+
+/* Стартовая площадка */
+const pad = new THREE.Mesh(new THREE.CylinderGeometry(2.4,2.4,0.18,40), new THREE.MeshStandardMaterial({color:0xffd23e, roughness:.7}));
+pad.position.y=0.09; pad.receiveShadow=true; scene.add(pad);
+const padMark = new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,0.2,20), new THREE.MeshStandardMaterial({color:0xe11, emissive:0x440000}));
+padMark.position.y=0.16; scene.add(padMark);
+
+/* ==================== ДРОН ==================== */
+function buildDrone(){
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.16,0.10,0.30), new THREE.MeshStandardMaterial({color:0x22282f,roughness:.5,metalness:.3}));
+  body.castShadow=true; g.add(body);
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(0.14,0.03,0.22), new THREE.MeshStandardMaterial({color:0x9fd0ff,roughness:.3,emissive:0x0d2740}));
+  lid.position.y=0.065; g.add(lid);
+  for (const [sx,sz] of [[1,1],[1,-1],[-1,-1],[-1,1]]){
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.16,8),
+      new THREE.MeshStandardMaterial({color:0x2b3440,roughness:.6}));
+    arm.rotation.z = Math.PI/2;
+    arm.position.set(0.145*sx, 0.02, 0.145*sz);
+    arm.lookAt(new THREE.Vector3(0.3*sx,0,0.3*sz));
+    g.add(arm);
+  }
+  const prot=[];
+  for (const [sx,sz] of [[1,1],[1,-1],[-1,-1],[-1,1]]){
+    const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.05,12),
+      new THREE.MeshStandardMaterial({color:0x8f98a6,metalness:.5,roughness:.35}));
+    motor.position.set(0.22*sx, 0.045, 0.22*sz);
+    g.add(motor);
+    const prop = new THREE.Mesh(new THREE.CircleGeometry(0.16,24,0,Math.PI*2),
+      new THREE.MeshStandardMaterial({color:0x2a2f36,transparent:true,opacity:.55,side:THREE.DoubleSide,roughness:.4}));
+    prop.rotation.x = -Math.PI/2; prop.position.y = 0.085;
+    g.add(prop); prot.push(prop);
+    const tip=new THREE.Mesh(new THREE.BoxGeometry(0.20,0.012,0.02), new THREE.MeshStandardMaterial({color:0x5fd0ff,emissive:0x135e84}));
+    tip.rotation.x=-Math.PI/2; tip.position.y=0.085; g.add(tip);
+  }
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.03,10,10), new THREE.MeshStandardMaterial({color:0x3ddc84,emissive:0x0f5a2a}));
+  beacon.position.y=0.09; g.add(beacon);
+  return {g, prot, beacon};
+}
+const drone = buildDrone();
+scene.add(drone.g);
+
+const AR = 0.225;           /* плечо рамы, м */
+const DRONE = {
+  m: 1.05, g: 9.81,
+  HOVER: 1.05*9.81,            /* тяга на зависание */
+  MAXT: 2.0*1.05*9.81,           /* макс. суммарная тяга ≈20.6 Н (50% стика = зависание) */
+  KTM: 8.0,                      /* макс тяга одного винта, Н */
+  KQ : 0.05,                    /* реактивный момент винта, Н·м/Н тяги */
+  KDX: 0.55, KDY: 0.75, KDZ: 0.55,  /* вязкое сопротивление, Н/(м/с) */
+  CD2: 0.12,                     /* квадратичное сопротивление, Н/(м/с)² */
+  MOTAU: 0.08,                   /* с — постоянная времени мотора */
+  Ix: 0.014, Iz: 0.014, Iy: 0.028,
+  /* контур углов → угловая скорость */
+  attKp: 1.4, maxTilt: 0.5, maxRate: 1.2, yawMax: 1.2,
+  /* контур угловой скорости → момент */
+  rateKp: 9, rateKd: 7,
+  /* рыскание — отдельные, ослабленные коэффициенты (момент от КQ мал) */
+  rateKpY: 3, rateKdY: 2.5,
+};
+const Iinv = [1/DRONE.Ix, 1/DRONE.Iy, 1/DRONE.Iz];
+
+/* Состояние дрона — физические переменные (тело: X вперёд, Y вверх, Z вправо) */
+const S = {
+  pos: new THREE.Vector3(0, 0.04, 0),
+  vel: new THREE.Vector3(0,0,0),
+  quat: new THREE.Quaternion(),          /* Y-up, тело = оси меша */
+  ang: new THREE.Vector3(0,0,0),         /* угловые скорости, рад/с */
+  motor: [0,0,0,0], motorOut:[0,0,0,0],  /* нормализованные обороты 0..1 */
+  T:0, batt:1.0, armed:false, wind:new THREE.Vector3(),
+  state:'idle', tInState:0, hoverHold:false,
+  ih:0,                              /* интеграл автовысоты */
+  fid:[], oldPos:new THREE.Vector3(),
+};
+
+/* Параметры полётного контроллера — внутренние переменные */
+const CTRL = {
+  throttle:0, yawS:0, pitchS:0, rollS:0,   /* стики −1..1 (сглаженные) */
+  phi:0, theta:0,                          /* фактический угол крен/тангаж, рад */
+  pDes:0, qDes:0, rDes:0,
+  tR:0, tP:0, tY:0,                        /* моменты крена/тангажа/рыскания */
+  thrustCmd:0,
+};
+
+/* ==================== АВТОПИЛОТ ==================== */
+let PILOT=0;                      /* 0=ручной, 1=АВТО (миссия), 2=CV-АВТО (камера Ж/В) */
+let MAXTILT_BOOST=1;              /* штормовой форсаж наклона для автопилота */
+let AI_h=0, AI_g=null, AI_dir=null, AI_sgn=1;
+let AI_cv={u:0,v:0,on:false,dist:999};   /* для CV-оверлея */
+function aiHeading(){
+  const n=new THREE.Vector3(1,0,0).applyQuaternion(S.quat);
+  return Math.atan2(n.z,n.x);
+}
+/* Цель ворот: ось кольца. Латеральная ошибка e — смещение от оси (в плоскости кольца). */
+function aiGateSetup(g){
+  if(g!==AI_g){ AI_g=g;
+    const u=(S.pos.x-g.x)*Math.sin(g.rotY)+(S.pos.z-g.z)*Math.cos(g.rotY);
+    const nx=Math.sin(g.rotY), nz=Math.cos(g.rotY);
+    AI_sgn = u>0 ? -1 : 1;                 /* атакуем с той стороны, где дрон */
+    AI_dir={x:nx*AI_sgn, z:nz*AI_sgn};
+  }
+  return {g:AI_g, a:AI_dir};
+}
+function aiPlanMission(){
+  let tgt=null, hDes=4, landing=false, gate=null;
+  if(S.mActive===0){
+    const cur=M.tasks[M.current];
+    tgt={x:0,z:0}; hDes=4;
+    if(cur && String(cur.t).indexOf('4.')===0){ landing=true; hDes=0; }
+  }
+  else if(S.mActive===1||S.mActive===4){         /* 4 = пользовательская программа */
+    gate=gates.find(x=>!x.passed);
+    if(!gate){ tgt={x:0,z:0}; hDes=6; }
+    else{ let r=aiGateSetup(gate); gate=r; hDes=gate.g.y+0.4; }
+  }
+  else if(S.mActive===2){
+    tgt={x:0,z:0}; hDes=5.4;
+    const cur=M.tasks[M.current];
+    if(cur && String(cur.t).indexOf('3.')===0){ landing=true; hDes=0; }
+  }
+  else if(S.mActive===3){
+    gate=gates.find(x=>!x.passed);
+    if(!gate){ tgt={x:0,z:0}; hDes=4; }
+    else{ let r=aiGateSetup(gate); gate=r; hDes=gate.g.y+0.8; }
+  }
+  return {tgt, hDes, landing, gate};
+}
+/* Выдача стиков {L:{x,y},R:{x,y}} в координатах пульта (-1..1) */
+function aiPilotSticks(){
+  MAXTILT_BOOST = S.wind.length()>3 ? 1.3 : 1;   /* в шторм автопилоту надо больше наклона */
+  if(PILOT===0||S.state!=='mission') return {L:{x:0,y:0},R:{x:0,y:0}};
+  const {tgt,hDes,landing,gate}=aiPlanMission();
+  /* плавный рамп высоты (~1.1 м/с) */
+  AI_h += clamp(hDes - AI_h, -0.9, 1.1) * dtRender;
+  const y=S.pos.y, vy=S.vel.y;
+  let thr;
+  if(landing){
+    thr = 0.5 + clamp(0.38*(Math.max(AI_h,0.02)-y), -0.42, 0.42);
+    thr -= 0.35*vy;
+    thr = clamp(thr, 0.08, 0.6);
+    if(y<0.09 && vy>-0.4) thr = clamp(thr, 0.08, 0.3);
+  } else {
+    const err = Math.max(AI_h, 0.3) - y;   /* +0.3 внизу: обязательный отрыв */
+    thr = 0.5 + clamp(0.42*err, -0.45, 0.5) - 0.3*vy;
+    thr = clamp(thr, 0.06, 0.95);
+  }
+  let pitch=0, roll=0, yaw=0;
+  const psi=aiHeading();
+  const cs=Math.cos(psi), sn=Math.sin(psi);
+  const vf=S.vel.x*cs+S.vel.z*sn, vl=-S.vel.x*sn+S.vel.z*cs;
+  let vfd=0, vld=0, yE=0;
+  AI_cv.on=false;
+  if(gate){
+if(PILOT===2){
+      /* ---- CV-пилот: сигналы управления из «кадра» передней камеры ----
+         Ось дыры кольца и центр кольца проецируются в тело дрона
+         (X вперёд, Y вверх, Z вправо); из усечённого эллипса кольца
+         моно-CV оценивает направление оси (av) и поперечную ошибку (e).
+         Управление идентично line-track, но углы берутся из камеры. */
+      const qinv=S.quat.clone().invert();
+      const p=new THREE.Vector3(gate.g.x-S.pos.x, gate.g.y-S.pos.y, gate.g.z-S.pos.z);
+      const b=p.clone().applyQuaternion(qinv.clone());
+      const ax=gate.a.x, az=gate.a.z;
+      const av=new THREE.Vector3(ax,0,az).applyQuaternion(qinv.clone());
+      const on=b.x>0.25;
+      AI_cv={u: on? b.z/b.x:0, v: on? b.y/b.x:0, on, dist:p.length()};
+      const fwx=Math.max(0.3,av.x);
+      const ex=S.pos.x-gate.g.x, ez=S.pos.z-gate.g.z;
+      const e= ex*az - ez*ax;             /* поперечная ошибка до линии оси */
+      const dA=ex*ax+ez*az;
+      const cvet=S.pos.y-gate.g.y;
+      yE = Math.atan2(av.z, fwx) + clamp(0.55*e, -1.0, 1.0);
+      while(yE>Math.PI)yE-=2*Math.PI; while(yE<-Math.PI)yE+=2*Math.PI;
+      yaw=clamp(0.65*yE,-1,1);
+      const near=clamp(1-Math.abs(dA)/12, 0, 1);
+      const base=clamp(3.0-2.2*near, 0.75, 3.0);
+      vfd=base*Math.max(0.2, Math.cos(yE));
+      const camG=0.55*e + 0.5*cvet;
+      vld=clamp(camG*0.9, -2.6, 2.6);
+      pitch=clamp((vfd-vf)*0.5, -1, 1);
+      roll=clamp((vld-vl)*0.8, -1, 1);
+    } else {
+      /* ---- слежение за линией оси кольца ---- */
+      const gx=gate.g.x, gz=gate.g.z, ax=gate.a.x, az=gate.a.z;
+      const ex=S.pos.x-gx, ez=S.pos.z-gz;
+      const e= ex*az - ez*ax;             /* +e = слева от оси (перпендикуляр в плоскости) */
+      const dA=ex*ax+ez*az;               /* продольное расстояние до плоскости */
+      const cvet=S.pos.y-gate.g.y;
+      yE = Math.atan2(az,ax) + clamp(0.55*e, -1.0, 1.0) - psi;
+      while(yE>Math.PI)yE-=2*Math.PI; while(yE<-Math.PI)yE+=2*Math.PI;
+      yaw=clamp(0.65*yE,-1,1);
+      const near=clamp(1-Math.abs(dA)/12, 0, 1);
+      const base=clamp(3.0-2.2*near, 0.75, 3.0);
+      vfd=base*Math.max(0.2, Math.cos(yE));
+      const camG=0.55*e + 0.5*cvet;
+      vld=clamp(camG*0.9, -2.6, 2.6);
+      pitch=clamp((vfd-vf)*0.5, -1, 1);
+      roll=clamp((vld-vl)*0.8, -1, 1);
+    }
+  } else {
+    /* ---- обычная цель (миссии без ворот): преследование точки ---- */
+    const dx=tgt.x-S.pos.x, dz=tgt.z-S.pos.z;
+    const dist=Math.hypot(dx,dz);
+    const fwd=dx*cs+dz*sn, lat=-dx*sn+dz*cs;
+    yE = Math.atan2(tgt.z-S.pos.z, tgt.x-S.pos.x) - psi;
+    while(yE>Math.PI)yE-=2*Math.PI; while(yE<-Math.PI)yE+=2*Math.PI;
+    if(dist>1.5){
+      vfd=Math.min(clamp(fwd*0.45, 0, 3.8), (dist>7?99: dist*0.7));
+      vfd *= Math.max(0.25, 1 - 0.75*Math.min(1, Math.abs(yE)/1.5));
+    } else vfd=0;
+    vld=clamp(-lat*0.66, -3.0, 3.0);
+    if(Math.abs(yE)>0.04) yaw=clamp(0.55*yE,-1,1); else yaw=0;
+    const aF=clamp(1.15*(vfd-vf), -3.2, 3.2);
+    const aL=clamp(1.15*(vld-vl), -3.0, 3.0);
+    pitch=clamp((aF/9.81)/0.5, -1, 1);
+    roll=clamp((aL/9.81)/0.5, -1, 1);
+  }
+  if(landing){ pitch*=0.5; roll*=0.5; }
+  return {L:{x:yaw, y:thr*2-1}, R:{x:roll, y:pitch}};
+}
+function updateCvUi(){
+  const el=document.getElementById('cvAim'); if(!el)return;
+  const on=PILOT===2&&AI_cv.on;
+  el.style.display=on?'block':'none';
+  if(!on)return;
+  const mk=el.children[0]; if(!mk)return;
+  const x=innerWidth/2 + AI_cv.u*260;
+  const y=innerHeight/2 - AI_cv.v*260;
+  mk.style.transform=`translate(${x}px,${y}px)`;
+}
+function cyclePilot(){
+  if(!inGame())return;
+  if(S.state!=='mission'){ logMsg('Сначала вернитесь в миссию (Enter)'); return; }
+  PILOT=(PILOT+1)%3;
+  if(PILOT>0 && !S.armed){ S.armed=true; beep(660,0.1); }
+  const name=['РУЧНОЙ','АВТО','CV-АВТО'][PILOT];
+  const btn=document.getElementById('btnPilot');
+  if(btn){ btn.textContent=name; btn.className='p'+PILOT; }
+  showMsg(PILOT>0? (PILOT===1?'АВТОПИЛОТ МИССИИ':'CV-ПИЛОТ · КАМЕРА') : 'УПРАВЛЕНИЕ РУЧНОЕ', 'ok', PILOT>0?'V — переключить обратно':'газ и стики снова ваши');
+  logMsg('Пилот: '+name+' (V)');
+}
+function pilotLabel(){
+  const btn=document.getElementById('btnPilot');
+  if(btn){ btn.textContent=['РУЧНОЙ','АВТО','CV-АВТО'][PILOT]||'РУЧНОЙ'; btn.className='p'+PILOT; }
+}
+/* Крен/тангаж в СОБСТВЕННОМ базисе тела (классический «горизонт» без артефактов рыскания).
+   Мировой «вверх» (0,1,0), спроецированный на оси тела = q* ⊗ (0,1,0) ⊗ q:
+   ux = sin(θ)  (нос вверх → +),  uz = −sin(φ)  (правое крыло вниз → +). */
+function eulFromQuat(q){
+  const qc={x:-q.x,y:-q.y,z:-q.z,w:q.w};          /* сопряжённый: мировой «вверх» в теле */
+  const x=0,y=1,z=0;
+  const ix=qc.w*x+qc.y*z-qc.z*y, iy=qc.w*y+qc.z*x-qc.x*z, iz=qc.w*z+qc.x*y-qc.y*x, iw=-qc.x*x-qc.y*y-qc.z*z;
+  const ux= ix*qc.w+iw*-qc.x+iy*-qc.z-iz*-qc.y;
+  const uz= iz*qc.w+iw*-qc.z+ix*-qc.y-iy*-qc.x;
+  return {phi:-Math.asin(clamp(uz,-1,1)), theta:Math.asin(clamp(ux,-1,1))};
+}
+
+/* МИКСЕР: 4×4 (тяга, крен, тангаж, рыскание) → тяга каждого винта.
+   Моторы (X вперёд, Z вправо): 1=ПП(+x,+z), 2=ЛП(+x,−z), 3=ЛЗ(−x,−z), 4=ПЗ(−x,+z).
+   Метод: сила F_i = T/4 + (τ/4a)·sign_i — реальная матрица ПСЕВДООБРАТНАЯ.
+   τ_roll = a·(F2+F3−F1−F4)   (правые винты чаще → правым крылом вниз → +φ)
+   τ_pitch= a·(F1+F2−F3−F4)   (передние чаще → нос вверх → +θ)
+   τ_yaw  = kq·(F1−F2+F3−F4)  (по закону сохранения момента импульса) */
+function mixer(T, tR, tP, tY, a, kq){
+  const f1=(T + tP/a - tR/a + tY/kq)/4;
+  const f2=(T + tP/a + tR/a - tY/kq)/4;
+  const f3=(T - tP/a + tR/a + tY/kq)/4;
+  const f4=(T - tP/a - tR/a - tY/kq)/4;
+  return [f1,f2,f3,f4];
+}
+
+function physicsStep(dt){
+  const d=DRONE;
+  const e=eulFromQuat(S.quat); CTRL.phi=e.phi; CTRL.theta=e.theta;
+
+  /* ---- 1. ЧТО ХОTЯТ ПАЛЬЦЫ (стики) → целевые углы / угловые скорости ---- */
+  let pitchS=CTRL.pitchS, rollS=CTRL.rollS, yawS=CTRL.yawS, thr=CTRL.throttle;
+  if (!S.armed){
+    pitchS=rollS=yawS=thr=0;
+    for(let i=0;i<4;i++) S.motorOut[i]=0;
+  }
+  /* Горизонтный режим: задаём ТРЕБУЕМУЮ НОРМАЛЬ корпуса (вектор «вверх» тела)
+     и крутим корпус к ней через ω = k·(des×upB). Так общий наклон ограничен
+     автоматически (normalize()), а крен/тангаж не перепутываются при рыскании. */
+  const upB = new THREE.Vector3(0,1,0).applyQuaternion(S.quat.clone().conjugate());
+  const des = new THREE.Vector3(-pitchS*d.maxTilt*MAXTILT_BOOST, 1, -rollS*d.maxTilt*MAXTILT_BOOST).normalize();
+  const crossUp = des.clone().cross(upB);
+  const pDes = clamp(d.attKp * crossUp.x, -d.maxRate, d.maxRate);
+  const qDes = clamp(d.attKp * crossUp.z, -d.maxRate, d.maxRate);
+  const rDes = -yawS * d.yawMax;                  /* стик вправо → нос вправо (вокруг −Y) */
+  if (S.hoverHold && S.armed){
+    S.ih += clamp(4.0 - S.pos.y, -1, 1) * dt;
+    S.ih = clamp(S.ih, -0.15, 0.15);
+    thr = 0.5 + S.ih + 0.22*(4.0 - S.pos.y) - 0.55*S.vel.y;  /* автопилот высоты 4 м */
+    thr = clamp(thr, 0.08, 0.95);
+  }
+  /* управление доступно, если моторы вооружены, есть газ и dрон в активном полёте.
+     Нет газа ⇒ нет тяги И нет моментов: аппарат падает «камнем» — как настоящий квад. */
+  const ctrlOk = S.armed && thr>0.03 && (S.state==='mission');
+  /* ---- 2. ГАЗ: тяга по кривой (на середине стика — зависание при ровном корпусе) ---- */
+  const T = (ctrlOk && thr>0) ? thr * d.MAXT : 0;
+
+  /* ---- 3. ВНУТРЕННИЙ КОНТУР: скорость вращения → требуемое угловое ускорение ----
+     С.ang = (крен p, рыскание rY, тангаж rZ). Коэффициенты рыскания отдельные:
+     реактивный момент винта мал, иначе лёгкий поворот сразу «рвёт» миксер. */
+  const p=S.ang.x, rY=S.ang.y, rZ=S.ang.z;
+  const wdotX = ctrlOk ? (d.rateKp*(pDes - p)  - d.rateKd*p)  : 0;   /* крен */
+  const wdotY = ctrlOk ? (d.rateKpY*(rDes - rY) - d.rateKdY*rY) : 0; /* рыскание */
+  const wdotZ = ctrlOk ? (d.rateKp*(qDes - rZ) - d.rateKd*rZ) : 0;   /* тангаж */
+  /* Клэмпы по реально достижимому моменту при текущей тяге T:
+     крен/тангаж ≤ 0.85·a·min(T,2KTM) (винты не бесконечные), рыскание ≤ его KQ-части.
+     Иначе команда уходит в насыщение и «наматывает» собственное возмущение. */
+  const trMax = 0.85*AR*Math.min(T, 2*d.KTM);
+  const tyMax = 0.85*d.KQ*Math.min(T, 2*d.KTM)/2;
+  const tR = clamp(wdotX*DRONE.Ix, -trMax, trMax);
+  const tY = clamp(wdotY*DRONE.Iy, -tyMax, tyMax);
+  const tP = clamp(wdotZ*DRONE.Iz, -trMax, trMax);
+
+  /* ---- 4. МИКСЕР → команды оборотов каждого мотора ---- */
+  let motors;
+  if (ctrlOk){
+    motors = mixer(T, tR, tP, tY, AR, d.KQ);
+    motors = motors.map(f => clamp(f,0,DRONE.KTM));
+  } else motors=[0,0,0,0];
+  for(let i=0;i<4;i++) S.motorOut[i]=Math.sqrt(motors[i]/DRONE.KTM); /* Ω_cmd ∝ √F */
+
+  /* ---- 5. ДИНАМИКА МОТОРОВ (первый порядок) ---- */
+  const k=dt/DRONE.MOTAU;
+  for(let i=0;i<4;i++) S.motor[i] += (S.motorOut[i]-S.motor[i])*Math.min(1,k);
+
+  /* ---- 6. ФАКТИЧЕСКИЕ СИЛЫ ---- */
+  const Fi=S.motor.map(m=>DRONE.KTM*m*m);   /* F=C_T·ρ·n²·D⁴ ∝ Ω² */
+  const Fthrust = Fi.reduce((a,b)=>a+b,0);
+  S.T = Fthrust;
+  /* Реальные моменты от фактических тяг (моторы отстают/совпадают с командой):
+     τ_roll = a·(F2+F3−F1−F4), τ_pitch = a·(F1+F2−F3−F4), τ_yaw = kq·(F1−F2+F3−F4).
+     Так учитываются ограничение тяги (клиппинг) и динамика моторов. */
+  const tauRoll_act = AR*(Fi[1]+Fi[2]-Fi[0]-Fi[3]);
+  const tauPit_act  = AR*(Fi[0]+Fi[1]-Fi[2]-Fi[3]);
+  const tauYaw_act  = d.KQ*(Fi[0]-Fi[1]+Fi[2]-Fi[3]);
+  /* векторы силы в мире: тяга вдоль +Y тела */
+  const up = new THREE.Vector3(0,1,0).applyQuaternion(S.quat);
+  const Fb = up.clone().multiplyScalar(Fthrust);
+
+  /* ---- 7. ТЯГОТЕНИЕ + СОПРОТИВЛЕНИЕ ---- */
+  Fb.y -= DRONE.m*DRONE.g;
+  const vw = S.vel.clone().add(S.wind);
+  const D = new THREE.Vector3(
+    DRONE.KDX*vw.x + DRONE.CD2*Math.abs(vw.x)*vw.x,
+    DRONE.KDY*vw.y + DRONE.CD2*Math.abs(vw.y)*vw.y,
+    DRONE.KDZ*vw.z + DRONE.CD2*Math.abs(vw.z)*vw.z);
+  Fb.sub(D);
+
+  const a = Fb.divideScalar(DRONE.m);
+
+  /* ---- 8. ИНТЕГРАЦИЯ ЛИНЕЙНАЯ ---- */
+  S.vel.addScaledVector(a, dt);
+  S.pos.addScaledVector(S.vel, dt);
+
+  /* ---- 9. УГЛОВОЕ УСКОРЕНИЕ (тело) ---- */
+  const om=S.ang;
+  const gyro = new THREE.Vector3(
+    (DRONE.Iy-DRONE.Iz)*om.y*om.z,
+    (DRONE.Iz-DRONE.Ix)*om.z*om.x,
+    (DRONE.Ix-DRONE.Iy)*om.x*om.y);   /* ω × Iω — гироскопическая связь */
+  const tauB = new THREE.Vector3(tauRoll_act, tauYaw_act, tauPit_act);  /* (крен, рыскание, тангаж) */
+  const alphaB = new THREE.Vector3(
+    (tauB.x - gyro.x)*Iinv[0],
+    (tauB.y - gyro.y)*Iinv[1],
+    (tauB.z - gyro.z)*Iinv[2]);
+  S.ang.addScaledVector(alphaB, dt);
+  S.ang.clampLength(0, 30);
+
+  /* ---- 10. ВРАЩЕНИЕ (кватернион) ---- */
+  const dq = new THREE.Quaternion();
+  const wMag = S.ang.length();
+  if (wMag>1e-6){
+    dq.setFromAxisAngle(S.ang.clone().normalize(), wMag*dt);
+    S.quat.multiply(dq);
+    S.quat.normalize();
+  }
+
+  /* ---- 11. ЗЕМЛЯ ---- */
+  const e2=eulFromQuat(S.quat);
+  const tilt=Math.hypot(Math.abs(e2.phi),Math.abs(e2.theta));
+  if (S.pos.y < 0.04){
+    const vyImpact = S.vel.y;        /* запоминаем ДО гашения вертикальной скорости */
+    S.pos.y=0.04;
+    if (S.vel.y<0) S.vel.y=0;
+    if (Math.abs(S.vel.x)>3.2 || Math.abs(S.vel.z)>3.2){
+      S.vel.x*=0.2; S.vel.z*=0.2;
+    }
+    /* трение опоры: стойки «цепляются» за землю и гасят вращение */
+    S.ang.x*=0.55; S.ang.y*=0.55; S.ang.z*=0.55;
+    if (vyImpact < -1.6){
+      /* жёсткий удар — падение/крушение */
+      S.hardHit=true;
+    }
+  }
+  /* удержание моторов в нуле после крушения */
+  if (S.state==='crash'||S.state==='lost'||S.state==='win') S.motorOut=[0,0,0,0];
+
+  /* 12. аккумулятор (~4.5 мин теннисного полёта) */
+  const drain = (0.22 + 0.78*(thr*thr)) * dt / 240;
+  S.batt = Math.max(0, S.batt-drain);
+}
+
+/* ============== ОТРИСОВКА ============== */
+function syncDroneMesh(){
+  const d=drone.g;
+  d.position.copy(S.pos);
+  d.quaternion.copy(S.quat);
+  const spd = S.motor.map(m=>m);
+  /* визуальная раскрутка винтов */
+  for(let i=0;i<4;i++) drone.prot[i].rotation.z -= spd[i]*60*dtRender*0.35;
+  /* IR-маячок: мигает при невооружённости */
+  const beaconMat = drone.beacon.material;
+  beaconMat.color.setHex(S.armed?0x3ddc84:0x3a3a3a);
+  beaconMat.emissive.setHex(S.armed?0x0f5a2a:0x000000);
+  /* меш дрона гаснет/падает при крушении: положение уже физика */
+}
+
+/* ============== КАМЕРЫ ============== */
+let camMode=0, orbitYaw=0.8, orbitPitch=0.35, orbitDist=8;
+function updateCamera(){
+  if (camMode===0){
+    /* следящая камера: позади дрона (со стороны −X тела), выше на 2.2 м */
+    const back = new THREE.Vector3(-1,0,0).applyQuaternion(S.quat);
+    back.y = 0; back.normalize();
+    const goal = S.pos.clone().add(back.multiplyScalar(5.5)).add(new THREE.Vector3(0,2.2,0));
+    goal.y = Math.max(goal.y, 0.7);
+    camera.position.lerp(goal, Math.min(1, 5.0*dtRender));
+    camera.lookAt(S.pos.x, S.pos.y+0.4, S.pos.z);
+  } else {
+    /* орбитальная камера с мышью/колесом */
+    const x=S.pos.x + orbitDist*Math.sin(orbitYaw)*Math.cos(orbitPitch);
+    const y=S.pos.y + orbitDist*Math.sin(orbitPitch);
+    const z=S.pos.z + orbitDist*Math.cos(orbitYaw)*Math.cos(orbitPitch);
+    camera.position.set(x,Math.max(y,0.6),z);
+    camera.lookAt(S.pos.x, S.pos.y+0.5, S.pos.z);
+  }
+}
+
+/* ============== КОЛЛИЗИИ / МИССИИ ============== */
+const gates=[], obstacles=[];
+function addGate(x,y,z,rotY,col,label){
+  const tor=new THREE.Mesh(new THREE.TorusGeometry(2.1,0.14,14,40), new THREE.MeshStandardMaterial({color:col,roughness:.5,emissive:col,emissiveIntensity:.25}));
+  tor.position.set(x,y,z);
+  tor.rotation.y = rotY;
+  scene.add(tor);
+  const glow=new THREE.Mesh(new THREE.TorusGeometry(2.28,0.05,8,28), new THREE.MeshStandardMaterial({color:col,transparent:true,opacity:.35}));
+  glow.position.copy(tor.position); glow.rotation.copy(tor.rotation); scene.add(glow);
+  gates.push({x,y,z,rotY,col,label,passed:false,tor,glow});
+}
+function addObstacle(x,y,z,r){
+  const m=new THREE.Mesh(new THREE.SphereGeometry(r,16,14), new THREE.MeshStandardMaterial({color:0x9a6a3f,roughness:.95}));
+  m.position.set(x,y,z); m.castShadow=true; scene.add(m);
+  obstacles.push({x,y,z,r});
+}
+
+const MISSIONS=[
+  { name:'Взлёт и зависание', desc:'Вооружитесь (B), поднимите газ (~50%), стабилизируйте дрон на 4 м и удерживайте высоту.',
+    gates:[], tasks:[
+      {t:'1. Вооружить моторы (B)', ok:()=>S.armed},
+      {t:'2. Взлететь: H ≥ 2 м', ok:()=>S.pos.y>=2},
+      {t:'3. Удержание высоты 4 м', ok:()=>S.pos.y>=3.2&&S.pos.y<=4.8 && S.state!=='crash', timer:4},
+      {t:'4. Мягко приземлиться (пасс: |Vy|<1.2)', ok:()=>S.pos.y<0.2&&Math.abs(S.vel.y)<1.2, timer:2, safeLand:true},
+    ]},
+  { name:'Пролёт через кольца', desc:'План: петля из 3 колец. Пролетите в каждое по порядку. Касание кольца = крушение.',
+    gates:[
+      {x:16,y:6,z:0,rotY:0,col:0x4fc3f7,label:'1'},
+      {x:32,y:6,z:10,rotY:Math.PI/2.4,col:0xffd23e,label:'2'},
+      {x:50,y:8,z:-4,rotY:Math.PI/6,col:0xff5a5f,label:'3'},
+    ], tasks:[
+      {t:'1. Взлететь', ok:()=>S.pos.y>=2},
+      {t:'2. Кольцо #1 (синее)', ok:()=>gates[0].passed},
+      {t:'3. Кольцо #2 (зелёное)', ok:()=>gates[1].passed},
+      {t:'4. Кольцо #3 (красное)', ok:()=>gates[2].passed},
+    ]},
+  { name:'Мягкая посадка', desc:'Зависьте над подиумом на высоте 5 м, затем плавно снизьте газ и сядьте в круг.',
+    gates:[], tasks:[
+      {t:'1. Взлететь на 5 м', ok:()=>S.pos.y>=5},
+      {t:'2. Над центром (крен<25°)', ok:()=>Math.hypot(S.pos.x,S.pos.z)<2, timer:3},
+      {t:'3. Мягкая посадка на ПОДИУМ', ok:()=>S.pos.y<0.22 && Math.abs(S.vel.y)<1.0 && Math.hypot(S.pos.x,S.pos.z)<2.2, timer:2, safeLand:true, zonePad:true},
+    ]},
+  { name:'Слалом', desc:'Шахматный маршрут: влево-вправо-вверх. Комбинирует тангаж, крен, газ и рыск.',
+    gates:[
+      {x:18,y:3,z:0,rotY:0,col:0x4fc3f7,label:'A'},
+      {x:14,y:4,z:18,rotY:Math.PI/2,col:0xffd23e,label:'B'},
+      {x:40,y:6,z:18,rotY:0,col:0x3ddc84,label:'C'},
+      {x:-6,y:2,z:18,rotY:Math.PI/2,col:0xff5a5f,label:'D'},
+    ], tasks:[
+      {t:'1. Взлететь', ok:()=>S.pos.y>=2},
+      {t:'2. Кольцо A (лево, 3 м)', ok:()=>gates[0].passed},
+      {t:'3. Кольцо B (право, 4 м)', ok:()=>gates[1].passed},
+      {t:'4. Кольцо C (центр, 6 м)', ok:()=>gates[2].passed},
+      {t:'5. Кольцо D (лево, 2 м)', ok:()=>gates[3].passed},
+    ]},
+];
+
+/* ==================== ПОЛЁТНЫЕ ЗАДАНИЯ (программы) ==================== */
+const PROG_PRESETS=[
+  { name:'Круг', gates:[
+      {x:20,y:5,z:0,rotY:0,col:0x4fc3f7,label:'①'},
+      {x:10,y:5,z:14,rotY:Math.PI/2,col:0xffd23e,label:'②'},
+      {x:-10,y:5,z:14,rotY:Math.PI/2,col:0x3ddc84,label:'③'},
+      {x:-20,y:5,z:0,rotY:0,col:0xff5a5f,label:'④'},
+      {x:-10,y:5,z:-14,rotY:-Math.PI/2,col:0x9c88ff,label:'⑤'},
+      {x:10,y:5,z:-14,rotY:-Math.PI/2,col:0x3ddc84,label:'⑥'},
+    ]},
+  { name:'Квадрат', gates:[
+      {x:18,y:4,z:0,rotY:0,col:0x4fc3f7,label:'1'},
+      {x:18,y:5,z:16,rotY:Math.PI/2,col:0xffd23e,label:'2'},
+      {x:-8,y:6,z:16,rotY:Math.PI/2,col:0x3ddc84,label:'3'},
+      {x:-8,y:4,z:0,rotY:0,col:0xff5a5f,label:'4'},
+    ]},
+  { name:'Спираль', gates:[
+      {x:20,y:3,z:0,rotY:0,col:0x4fc3f7,label:'1'},
+      {x:8,y:4,z:20,rotY:Math.PI/2.2,col:0xffd23e,label:'2'},
+      {x:-12,y:5,z:-6,rotY:Math.PI/5,col:0x3ddc84,label:'3'},
+      {x:0,y:7,z:-20,rotY:-Math.PI/2.2,col:0xff5a5f,label:'4'},
+      {x:6,y:8,z:4,rotY:Math.PI/4,col:0x9c88ff,label:'5'},
+    ]},
+];
+const CFG={colors:[0x4fc3f7,0xffd23e,0x3ddc84,0xff5a5f,0x9c88ff,0x4dd4ac,0xff9d5c]};
+let userProg=null;                 /* редактируемая программа */
+try{userProg=JSON.parse(localStorage.getItem('dt_prog'));}catch(e){}
+function progTasks(gates){
+  const ts=[{t:'1. Взлететь', ok:()=>S.pos.y>=2}];
+  gates.forEach((g,i)=>ts.push({t:(i+2)+'. Кольцо '+(g.label||(i+1))+' ('+g.x+', '+g.y+', '+g.z+')', ok:()=>gates[i].passed}));
+  return ts;
+}
+function launchMission(Mi){
+  M=Mi;
+  S.mActive = Mi.custom ? 4 : (MISSIONS.indexOf(Mi)>=0?MISSIONS.indexOf(Mi):0);
+  /* очистить ворота */
+  for(const g of gates){scene.remove(g.tor);scene.remove(g.glow);}
+  gates.length=0;
+  obstacles.length=0;
+  if(Mi.gates) Mi.gates.forEach((g,i)=>addGate(g.x,g.y,g.z,g.rotY||0,g.col||CFG.colors[i%CFG.colors.length],g.label||''));
+  if(!Mi.gates||!Mi.gates.length){ pad.position.set(0,0.09,0); padMark.position.set(0,0.16,0); }
+  if (Mi.name==='Слалом'){
+    addObstacle(24,1.6,6,1.6); addObstacle(30,1.2,-6,1.8); addObstacle(2,1.5,16,2.0);
+  }
+  /* платформа для взлёта */
+  S.pos.set(0,0.04,0); S.vel.set(0,0,0); S.ang.set(0,0,0); S.quat.set(0,0,0,1);
+  S.motor=[0,0,0,0]; S.motorOut=[0,0,0,0]; S.batt=1; S.armed=false; S.state='mission'; S.tInState=0;
+  S.hardHit=false; S.hoverHold=false; S._c=false; S.crashMsg=null; S.ih=0;
+  AI_g=null; AI_dir=null; AI_h=0; AI_cv={u:0,v:0,on:false,dist:999};   /* сброс автопилота */
+  M.current=0; M.done=false; M.tStart=performance.now();
+  for(const t of M.tasks) t._t=0;
+  renderMission();
+  renderRecs();
+}
+function loadMission(i){
+  launchMission(MISSIONS[i]||MISSIONS[0]);
+}
+function runProgram(p){
+  if(!p||!p.gates||!p.gates.length){ showMsg('ПРОГРАММА ПУСТА','warn','Добавьте хотя бы одни ворота'); return; }
+  const prog={custom:true, name:p.name||'Задание', desc:'Пользовательская программа: '+p.gates.length+' колец. Порядок прохождения — по меткам.',
+    gates:p.gates.map(g=>({...g})), tasks:[]};
+  prog.tasks=progTasks(prog.gates);
+  launchMission(prog);
+  document.getElementById('start').style.display='none';
+  logMsg('Задание «'+prog.name+'» запущено'+(PILOT>0?' · '+['','АВТО','CV-АВТО'][PILOT]:''));
+}
+/* ---- редактор программ ---- */
+function progRowsUI(gates, container){
+  container.innerHTML='';
+  if(!gates.length){ container.innerHTML='<div class="prNo">Ворот пока нет — добавьте хотя бы первые.</div>'; }
+  gates.forEach((g,i)=>{
+    const row=document.createElement('div'); row.className='prRow';
+    row.innerHTML=`
+      <input class="x" type="number" step="1" value="${g.x}">
+      <input class="z" type="number" step="1" value="${g.z}">
+      <input class="y" type="number" step="1" value="${g.y}">
+      <input class="ry" type="number" step="5" value="${Math.round(g.rotY*180/Math.PI)}">
+      <input class="lb" type="text" maxlength="2" value="${g.label||''}">
+      <button class="del">✕</button>`;
+    row.querySelector('.del').onclick=()=>{ gates.splice(i,1); progRowsUI(gates,container); };
+    row.querySelector('.x').onchange=e=>g.x=+e.target.value;
+    row.querySelector('.z').onchange=e=>g.z=+e.target.value;
+    row.querySelector('.y').onchange=e=>g.y=+e.target.value;
+    row.querySelector('.ry').onchange=e=>g.rotY=(+e.target.value)*Math.PI/180;
+    row.querySelector('.lb').onchange=e=>g.label=e.target.value;
+    container.appendChild(row);
+  });
+}
+function addProgRow(gates){
+  const last=gates[gates.length-1];
+  const ax=last?last.x+14:0, zz=last?last.z:14, yy=last?last.y:4;
+  gates.push({x:(last&&zz===last.z&&ax===last.x+14)?ax:14, y:yy, z:zz, rotY:Math.PI/2, col:CFG.colors[gates.length%CFG.colors.length], label:String(gates.length+1)});
+}
+/* ---- рекомендации ---- */
+function renderRecs(){
+  const el=document.getElementById('recsBody'); if(!el)return;
+  if(!M.gates||!M.gates.length){ el.innerHTML='<li>Колец нет — полёты по точкам, автопилот не требуется.</li>'; return; }
+  const gs=M.gates;
+  let d=0; for(let i=0;i<gs.length;i++){
+    const a = i? gs[i-1] : {x:0,z:0};
+    d+=Math.hypot(gs[i].x-a.x, gs[i].z-a.z);
+  }
+  let hmin=1e9,hmax=-1e9; for(const g of gs){hmin=Math.min(hmin,g.y);hmax=Math.max(hmax,g.y);}
+  const varH = hmax-hmin;
+  const items=[];
+  items.push('<li><b>Маршрут:</b> '+gs.length+' колец, длина ≈ '+d.toFixed(0)+' м</li>');
+  items.push('<li><b>Высоты колец:</b> '+hmin+'…'+hmax+' м'+(varH>=3?' (сильно перепадают — следите за газом)':'')+'</li>');
+  if(gs.length>1){
+    let turnMax=0;
+    for(let i=1;i<gs.length;i++){
+      const b0=Math.atan2(gs[i-1].z-(i>1?gs[i-2].z:0), gs[i-1].x-(i>1?gs[i-2].x:0));
+      const b1=Math.atan2(gs[i].z-gs[i-1].z, gs[i].x-gs[i-1].x);
+      let dt=Math.abs(b1-b0); if(dt>Math.PI)dt=2*Math.PI-dt;
+      turnMax=Math.max(turnMax,dt);
+    }
+    items.push('<li><b>Макс. разворот:</b> '+(turnMax*180/Math.PI).toFixed(0)+'°'+(turnMax>1.2?' — закладывайте поворот заранее':'')+'</li>');
+  }
+  const est = d/2.5; /* ~2.5 м/с средняя */
+  items.push('<li><b>Батарея:</b> хватит на ≈ '+(est/60*100).toFixed(0)+'% заряда · <b>время:</b> ≈ '+est.toFixed(0)+' с</li>');
+  if(recKey&&recs&&recs[recKey()]) items.push('<li><b>Ваш рекорд:</b> '+recs[recKey()].best.toFixed(1)+' с · побед '+recs[recKey()].count+'</li>');
+  /* режим */
+  let mode='РУЧНОЙ';
+  if(d>=80||gs.length>=5) mode='АВТО (V) — длинный маршрут';
+  else if(varH>=3.5) mode='CV-АВТО (V, ещё раз) — разные высоты';
+  else if(d>=35) mode='АВТО (V)';
+  items.push('<li><b>Рекомендуемый режим:</b> '+mode+'</li>');
+  items.push('<li><b>Заход на кольцо:</b> выравнивайте курс вдоль оси кольца до последних метров</li>');
+  const wm=WIND_MODE||0;
+  if(wm===1) items.push('<li><b>Ветер:</b> слабый — держите запас скорости, ветер может сносить с оси</li>');
+  if(wm===2) items.push('<li><b>ШТОРМ:</b> автопилот может не справиться — поднимите высоту захода, летите с запасом скорости или отключите ветер</li>');
+  if(d<35&&varH<2) items.push('<li><b>Мало колец:</b> можно потренировать ручной пролёт впритирку</li>');
+  el.innerHTML=items.join('');
+}
+function renderTaskList(){
+  const tl=document.getElementById('tasklist'); tl.innerHTML='';
+  M.tasks.forEach((t,i)=>{
+    const d=document.createElement('div');
+    d.className='t'+(i<M.current?' ok':i===M.current?' cur':'');
+    d.textContent=t.t;
+    tl.appendChild(d);
+  });
+}
+function renderMission(){
+  document.getElementById('mTitle').textContent = M.name;
+  document.getElementById('mDesc').textContent = M.desc;
+  renderTaskList();
+}
+let M=MISSIONS[0], S_=null;
+function resetDroneForMission(){ S.pos.set(0,0.04,0); S.vel.set(0,0,0); S.ang.set(0,0,0); S.quat.set(0,0,0,1); S.motor=[0,0,0,0]; }
+
+function checkGates(){
+  for(const g of gates){
+    if(g.passed) continue;
+    const nx=Math.sin(g.rotY), nz=Math.cos(g.rotY);   /* нормаль кольца (ось дыры) */
+    const dx=S.pos.x-g.x, dz=S.pos.z-g.z;
+    const perp=Math.abs(dx*nx+dz*nz);                 /* толщина кольца (~0.9 м) */
+    const lat=Math.abs(dx*(-Math.cos(g.rotY))+dz*Math.sin(g.rotY));
+    const rad=Math.hypot(S.pos.y-g.y, lat);           /* радиус в плоскости кольца */
+    if(perp<0.9 && rad<2.0){
+      g.passed=true; g.tor.material.emissiveIntensity=.8; g.tor.material.color.setHex(0x3ddc84);
+      beep(520,0.12); logMsg('Кольцо пройдено!');
+    } else if(perp<0.85 && rad<2.5 && rad>2.0){
+      /* касание! */
+      S.state='crash'; S.crashMsg='КАСАНИЕ КОЛЬЦА'; S.hardHit=true; flashFail(); return;
+    }
+  }
+}
+function checkMission(){
+  const tk=M.tasks[M.current];
+  if(!tk){ M.done=true; winGame(); return; }
+  if(S.state!=='mission') return;
+  if(typeof tk.timer==='number'){
+    if(!tk._t){tk._t=0;}
+    if(tk.ok()) tk._t+=dtRender; else tk._t=0;
+    if(tk._t>=tk.timer){ M.current++; if(M.current>=M.tasks.length){winGame();return;} renderTaskList(); }
+  } else {
+    if(tk.ok()){ M.current++; renderTaskList(); }
+  }
+  /* таймаут миссии — 8 минут */
+  if((performance.now()-M.tStart)/1000>420) {
+    S.state='lost'; S.crashMsg='ТАЙМ-АУТ МИССИИ';
+  }
+}
+function winGame(){
+  M.done=true; S.state='win'; beep(392,0.5); setTimeout(()=>beep(523,0.5),250); setTimeout(()=>beep(659,0.6),500);
+  recordRun();
+  showMsg('МОЛОДЕЦ!','ok','Миссия выполнена · Enter — новая');
+  logMsg('✅ Миссия пройдена!');
+}
+
+/* ---------- события фейла ---------- */
+function flashFail(){ flashEl.style.opacity=0.45; setTimeout(()=>flashEl.style.opacity=0,220);
+  setTimeout(()=>{flashEl.style.opacity=0.3;},120); setTimeout(()=>flashEl.style.opacity=0,340); beep(110,0.4); }
+
+function checkFalls(){
+  if(S.state==='crash'||S.state==='lost'||S.state==='win'||S.state==='missionland') return;
+  const e=eulFromQuat(S.quat); const tilt=Math.max(Math.abs(e.phi),Math.abs(e.theta));
+  /* 1. удар о землю */
+  if(S.hardHit && S.pos.y<=0.05){
+    S.state='crash'; S.crashMsg='КРУШЕНИЕ О ЗЕМЛЮ'; return;
+  }
+  /* 2. переворот при касании */
+  if(S.pos.y<0.25 && tilt>0.8){
+    S.state='crash'; S.crashMsg='ПЕРЕВОРОТ · КАСАНИЕ ЗЕМЛИ КОРПУСОМ'; return;
+  }
+  /* 3. вылет за пределы */
+  if(Math.hypot(S.pos.x,S.pos.z)>95){
+    S.state='lost'; S.crashMsg='ПОКИДУЕТЕ ЗОНУ ПОЛЁТОВ'; return;
+  }
+  /* 4. столкновение с препятствием */
+  for(const o of obstacles){
+    const dx=S.pos.x-o.x, dy=Math.max(0,S.pos.y-o.y), dz=S.pos.z-o.z;
+    if(dx*dx+dy*dy+dz*dz < o.r*o.r){
+      S.state='crash'; S.crashMsg='СТОЛКНОВЕНИЕ С ПРЕПЯТСТВИЕМ'; return;
+    }
+  }
+  /* 5. разряд батареи */
+  if(S.batt<=0){S.state='lost'; S.crashMsg='БАТАРЕЯ РАЗРЯЖЕНА'; return;}
+  /* 6. падение с высоты при нуле моторов + потеря управления: машиннои падение = 0? */
+  if(S.armed && S.pos.y>0.5){ /* нормальный полёт */
+     const om=S.ang.length();
+     if(Math.abs(e.phi)>1.35&&Math.abs(e.phi)<Math.PI){ /* крен > 77° */
+       S.state='crash'; S.crashMsg='ПОТЕРЯ УПРАВЛЕНИЯ · КРЕН ЗА ПРЕДЕЛОМ'; S.hardHit=true;
+     }
+  }
+}
+function onMissionEnd(){
+  if(S.state==='crash'){ showMsg(S.crashMsg,'bad','Enter — заново · газ плавнее'); logMsg('💥 '+S.crashMsg); }
+  else if(S.state==='lost'){ showMsg(S.crashMsg,'warn','Enter — рестарт'); logMsg('✈ '+S.crashMsg); }
+  else if(S.state==='win'){ showMsg('МОЛОДЕЦ!','ok','Enter — новая миссия'); }
+  logResult(S.state==='crash'?'crash':'lost');
+}
+function softLandCheck(){
+  if(S.state!=='mission') return;
+  if(S.pos.y<0.15 && S.armed && S.vel.y>-1 && S.pos.y>0.03 && S.vel.y<0.5){
+    const e=eulFromQuat(S.quat);
+    if(Math.abs(e.phi)<0.2&&Math.abs(e.theta)<0.2 && S.vel.length()<0.9){
+      logMsg('🛬 Дрон устойчиво стоит на земле'); beep(440,0.15);
+    }
+  }
+}
+
+/* ============== НАУКА ============== */
+const FACTS=[
+  {h:'Тяга винта', t:'Лопасть отбрасывает воздух вниз — по третьему закону Ньютона получаем импульс вверх. Формула воздушного винта: la tex:$F ≈ C_T·ρ·n²·D⁴$, тяга растёт КВАДРАТИЧНО от числа оборотов. Поэтому дрон при одних и тех же движениях стика «мягко» набирает разгон.', s:'Момент импульса, Δp = ṁ·Δv · C_T≈0.05–0.2'},
+  {h:'Зависание', t:'Счастливое равновесие: la tex:$F_тяга = m·g$. На середине хода газа (50%) тяга = весу, и дрон висит. Чуть больше газа — поднимается, чуть меньше — опускается. Эксплуатационный потолок — там, где тяга уже не одолевает вес.', s:'Уравнение баланса сил: ṁ·v_up = m·g'},
+  {h:'Рыскание', t:'Винты вращаются парами «навстречу» (по закону сохранения момента импульса реакцией можно управлять). Быстрее вращаем пару по часовой — корпус поворачивается против часовой.', s:'Закон сохранения момента импульса: I₁·ω₁ = −I₂·ω₂'},
+  {h:'Крен и тангаж', t:'Разность тяг левых/правых винтов создаёт момент вокруг продольной оси: la tex:$\u03C4 = r × F$. Винт смещён от центра масс на плечо $r=0.225$ м, значит момент $M = ΔF·r$. Наклон корпуса = первый закон Ньютона: тяга получает боковую составляющую.', s:'Момент силы M = F·l — «правило рычага»'},
+  {h:'ПИД-регулятор', t:'Контроллер держит углы: рассоотвёт φ_жел − φ_факт умножается на коэффициент (П), плюс гашение колебаний скоростью вращения (Д). Внутренний контур скорости — как демпфер. Без «Д» дрон бы сложно раскачивался.', s:'ПД: u = Kp·e + Kd·de/dt · ζ≈0.7 (критически затухает)'},
+  {h:'Инерция', t:'Дрон не мгновенно меняет направление: момент инерции $I≈0.014$ кг·м². Резкий отказ мотора → разворот за ~0.2 с. Вот почему важна плавность стика!', s:'J·ω̇ = Στ, I = Σ m·r²'},
+  {h:'Сопротивление воздуха', t:'Вязкое сопротивление $F = ½·ρ·Cd·A·V²$ — на скорости 10–15 м/с квадратичный член начинает доминировать. Поэтому у дрона есть предельная скорость даже в пикировании, и «хвост» за дорн сдувается.', s:'F_d = C·V + C′·V²·sign(V)'},
+  {h:'Моторы не мгновенны', t:'между командой и фактическим числом оборотов ~80 мс (постоянная $τ_m$). Это — та самая «патока», когда дрон на большой скорости зависает при броске газа.', s:'τ_м dΩ/dt + Ω = Ω_ком · экспоненциальный переход'},
+  {h:'Смешение (миксер)', t:'Каждый мотор получает долю от всех команд: $Ω_i² = (T ± M_r/a ± M_p/a ± M_y/k_q)/k_t$. Матрица 4×4 ПСЕВДООБРАТНАЯ — это самая суть «совместной» работы винтов.', s:'Решение системы: F = A⁻¹·(T, τ_x, τ_y, τ_z)'},
+  {h:'Гирo эффект', t:'При быстром рывке появляются взаимовлияния осей la tex:$\omega × Iω$ — поэтому резкое рыскание чуть «раскачивает» крен. В реальных дронах с этим борется контроллер.', s:'Эйлеровы уравнения движения твёрдого тела'},
+  {h:'Посадка', t:'Важна вертикальная скорость: жёсткий контакт на Vy=−1.6 м/с = решётку. Плавная: постепенно убирать газ, дожидаться просадки скорости просадку.', s:'Импульс удара: J = F·Δt = m·Δv'},
+  {h:'Аккумулятор', t:'Ток пропорционален тяге (торические нагрузки на моторы). Не хватает ёмкости — падение. Планируйте расход на слалом, следите за драойном.', s:'P ≈ U·I; η_C ≈ 85%'}
+];
+function makeLatex(s){ return s.replace(/la tex:\$([^$]+)\$/g, (m,c)=>'<span class="latexc">'+c+'</span>'); }
+let factIdx=0, factTimer=0, factMode=0; /* 0=авто 1=стоп */
+function updateScience(dt){
+  factTimer+=dt;
+  let changed=false;
+  if(factMode===0 && (factTimer>9 || factTimer<0.01)){
+    if(factTimer>9){factTimer=0; factIdx=(factIdx+1)%FACTS.length;}
+    changed=true;
+  }
+  if(changed||factIdx!==_lastSci){_lastSci=factIdx;
+    const f=FACTS[factIdx];
+    document.getElementById('scTxt').innerHTML='<b style="color:#fff">'+f.h+'</b><br>'+makeLatex(f.t);
+    document.getElementById('scSrc').textContent=f.s;
+  }
+}
+let _lastSci=-1;
+
+/* ============== УПРАВЛЕНИЕ ============== */
+const keys={};
+const STICK={L:{x:0,y:0},R:{x:0,y:0}};
+let WIND_MODE=0;
+function inGame(){ return document.getElementById('start').style.display==='none'; }
+addEventListener('keydown',e=>{
+  keys[e.code]=true;
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+  if(!inGame()) return;
+  if(e.code==='KeyB'&&!e.repeat){
+    if(S.state!=='mission'){logMsg('Сначала вернитесь в миссию (Enter)'); return;}
+    S.armed=!S.armed; beep(S.armed?660:330,0.1);
+    logMsg(S.armed?'⚙ Моторы вооружены (B)':'Моторы выключены (B)');
+    if(!S.armed)S.motorOut=[0,0,0,0];
+  }
+  if(e.code==='Enter'){restartMission();}
+  if(e.code==='KeyH'&&!e.repeat){S.hoverHold=!S.hoverHold; logMsg('Автовысота '+ (S.hoverHold?'ВКЛ (H)':'ВЫКЛ (H)'));}
+  if(e.code==='KeyC'&&!e.repeat){camMode=1-camMode; logMsg('Камера: '+(camMode?'орбита':'следящая'));}
+  if(e.code==='KeyN'&&!e.repeat){factMode=1-factMode; factIdx=(factIdx+1)%FACTS.length; logMsg('Наука: '+(factMode?'зафиксирована':'авто'));}
+  if(e.code==='KeyT'&&!e.repeat){SHOW_FORCES=!SHOW_FORCES; logMsg('Векторы сил: '+(SHOW_FORCES?'вкл':'выкл'));}
+  if(e.code==='KeyX'&&!e.repeat){WIND_MODE=(WIND_MODE+1)%3; S.wind.set(0,0,0); logMsg('Ветер: '+['спокойно','слабый','шторм'][WIND_MODE]);}
+  if(e.code==='KeyP'&&!e.repeat){paused=!paused; logMsg(paused?'⏸ пауза':'▶ продолжить');}
+  if(e.code==='KeyV'&&!e.repeat){cyclePilot();}
+  if(e.code==='Space'&&!e.repeat){ S.armed=false; }
+},false);
+addEventListener('keyup',e=>{keys[e.code]=false;},false);
+
+function pollSticks(){
+  const L=STICK.L,R=STICK.R;
+  /* левый стик: стрелки — газ(вверх плюс) и рыск */
+  L.y = (keys['ArrowUp']?1:0) - (keys['ArrowDown']?1:0);
+  L.x = (keys['ArrowLeft']?-1:0) + (keys['ArrowRight']?1:0);
+  /* правый стик: WASD — тангаж и крен */
+  R.y = (keys['KeyW']?1:0) - (keys['KeyS']?1:0);
+  R.x = (keys['KeyD']?1:0) - (keys['KeyA']?1:0);
+  /* геймпад */
+  const gp=((navigator.getGamepads&&navigator.getGamepads())[0]);
+  if(gp){
+    if(gp.axes&&gp.axes.length>=6){
+      L.y = -gp.axes[1]; L.x = gp.axes[0];
+      R.y = -gp.axes[3]; R.x = gp.axes[2];
+    }
+    L.y=deadz(L.y,0.15);L.x=deadz(L.x,0.15);R.y=deadz(R.y,0.15);R.x=deadz(R.x,0.15);
+    if(gp.buttons[0]&&gp.buttons[0].pressed&&!gpArmed){S.armed=!S.armed;gpArmed=true;}
+    if(!gp.buttons[0]||!gp.buttons[0].pressed)gpArmed=false;
+  }
+  return {L,R};
+}
+let gpArmed=false;
+function deadz(v,z){return Math.abs(v)<z?0:(v-Math.sign(v)*z)/(1-z);}
+/* сглаживание стиков (стабильность!) */
+const SMOOTH=0.22;
+function updateSticks(){
+  const ai = PILOT>0 && S.state==='mission';
+  const p = ai ? aiPilotSticks() : pollSticks();
+  if(ai){
+    /* автопилот: команды ИИ сразу (без сглаживания, уже «плавные») */
+    CTRL.throttle = clamp((p.L.y+1)/2,0,1);
+    CTRL.yawS    = p.L.x;
+    CTRL.pitchS  = p.R.y;
+    CTRL.rollS   = p.R.x;
+  } else {
+    CTRL.throttle += (clamp((p.L.y+1)/2,0,1) - CTRL.throttle)*SMOOTH;
+    CTRL.yawS    += (p.L.x - CTRL.yawS)*SMOOTH;
+    CTRL.pitchS  += (p.R.y - CTRL.pitchS)*SMOOTH;
+    CTRL.rollS   += (p.R.x - CTRL.rollS)*SMOOTH;
+  }
+  /* анимация пульта */
+  const ls=document.getElementById('stL'), rs=document.getElementById('stR');
+  if(ls){ls.style.transform=`translate(${p.L.x*20}px, ${-p.L.y*20}px)`;}
+  if(rs){rs.style.transform=`translate(${p.R.x*20}px, ${-p.R.y*20}px)`;}
+}
+
+/* ---------- визуализация сил ---------- */
+let SHOW_FORCES=false;
+const frExtras=[];
+function drawForces(){
+  /* чистим старые стрелки */
+  for(const o of frExtras){scene.remove(o);} frExtras.length=0;
+  if(!SHOW_FORCES)return;
+  const up=new THREE.Vector3(0,1,0).applyQuaternion(S.quat);
+  /* стрелка суммарной тяги */
+  const a=new THREE.Vector3(0,1,0).applyQuaternion(S.quat).multiplyScalar(0.62*S.T/22+0.4);
+  frExtras.push(arrowMesh(S.pos, a.clone(), 0xffd23e));
+  /* стрелка веса */
+  frExtras.push(arrowMesh(S.pos.clone().add(new THREE.Vector3(0,0.5,0)), new THREE.Vector3(0,-0.5*DRONE.m*DRONE.g/12,0), 0xff5a5f));
+  /* векторы скорости */
+  frExtras.push(arrowMesh(S.pos.clone().add(new THREE.Vector3(0,0.9,0)), S.vel.clone().multiplyScalar(0.14), 0x4fc3f7));
+  /* суммарная сила */
+  const Fnet = up.clone().multiplyScalar(S.T);
+  Fnet.y -= DRONE.m*DRONE.g;
+  frExtras.push(arrowMesh(S.pos.clone().add(new THREE.Vector3(0,1.35,0)), Fnet.multiplyScalar(0.06), 0x3ddc84));
+}
+function arrowMesh(from, dir, col){
+  const len=dir.length(), d=dir.clone().normalize();
+  const g=new THREE.Group();
+  const shaft=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,len,6),
+    new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.85}));
+  shaft.position.y=len/2; g.add(shaft);
+  const head=new THREE.Mesh(new THREE.ConeGeometry(0.09,0.22,8),
+    new THREE.MeshBasicMaterial({color:col}));
+  head.position.y=len; g.add(head);
+  g.position.copy(from);
+  if(len>0.001){
+    g.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), d);
+  }
+  scene.add(g); return g;
+}
+
+/* ============== ПОТОК UI ============== */
+const telEl=id=>document.getElementById(id);
+function updateTelemetry(){
+  telEl('tAlt').textContent = S.pos.y.toFixed(1)+' м';
+  telEl('tVy').textContent = (S.vel.y).toFixed(1)+' м/с';
+  const spd=Math.hypot(S.vel.x,S.vel.z);
+  telEl('tSpd').textContent = spd.toFixed(1)+' м/с';
+  const e=eulFromQuat(S.quat);
+  telEl('tAtt').textContent = (e.phi*180/Math.PI).toFixed(0)+'° / '+(e.theta*180/Math.PI).toFixed(0)+'°';
+  telEl('tThr').textContent = (CTRL.throttle*100).toFixed(0)+'%';
+  const om=(S.motor.reduce((a,b)=>a+b,0)/4)*14500;
+  telEl('tRpm').textContent = Math.round(om);
+  telEl('tMass').textContent = DRONE.m.toFixed(2)+' кг';
+  const st={
+    idle:'—',mission:'ПОЛЁТ',crash:'КРУШЕНИЕ',lost:'ПОТЕРЯН',win:'ВЫПОЛНЕНО',missionland:'ПОСАДКА'
+  }[S.state=='missionland'?'mission':S.state] || S.state;
+  const eSt=telEl('tState'); eSt.textContent=st;
+  eSt.className='v '+(S.state==='crash'?'bad':S.state==='lost'?'warn':S.state==='win'?'good':'good');
+  const el=telEl('thrBar'); el.style.width=(S.T/DRONE.MAXT*100)+'%';
+  el.style.background = S.T<DRONE.m*DRONE.g*0.98?'var(--bad)':(S.T>DRONE.m*DRONE.g*1.5?'var(--warn)':'var(--ok)');
+  telEl('tBatt').textContent=(S.batt*100).toFixed(0)+'%';
+}
+const logEl=document.getElementById('logLine'); let logT=0;
+function logMsg(s){logEl.textContent=s; logT=3;}
+const flashEl=document.getElementById('flash');
+const msgEl=document.getElementById('msg'); let msgT=0;
+function showMsg(a,b,c){msgEl.className=b; msgEl.style.opacity=1; msgEl.innerHTML=a+(c?'<small>'+c+'</small>':''); msgT=4;}
+function updateMsgs(dt){
+  if(msgT>0){msgT-=dt; if(msgT<=0)msgEl.style.opacity=0;}
+  if(logT>0){logT-=dt; if(logT<=0)logEl.textContent='';}
+}
+function beep(freq,dur){
+  try{
+    if(!_ac) _ac=new (window.AudioContext||window.webkitAudioContext)();
+    const ac=_ac; if(ac.state==='suspended')ac.resume();
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.type='square'; o.frequency.value=freq; g.gain.setValueAtTime(0.02,ac.currentTime);
+    g.gain.setValueAtTime(0.08,ac.currentTime+0.01);
+    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+dur);
+    o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime+dur);
+  }catch(e){}
+}
+let _ac=null;
+function restartMission(){
+  loadMission(S.mActive);
+  msgEl.style.opacity=0; msgT=0; logMsg('Миссия перезапущена');
+}
+
+/* ============== ВЫХОДНЫЕ ДАННЫЕ / СТАТУСЫ ============== */
+function updateStatus(){
+  if(S.state==='idle'){ S.state='mission'; }
+  if(S.state==='crash'||S.state==='lost'){
+    /* физика просыпается после удара */
+    if(!S._c){S._c=true; onMissionEnd();}
+  }
+  if(S.state==='mission'){
+    checkGates(); checkMission();
+    const e=eulFromQuat(S.quat);
+    checkFalls();
+    if(S.state==='mission') softLandCheck();
+  }
+  if(S.state==='win'){
+    /* стабилизируем дрон: он уже на земле */
+    S.motorOut=[0,0,0,0];
+  }
+}
+
+/* ============== ГЛАВНЫЙ ЦИКЛ ============== */
+let paused=false;
+const clock=new THREE.Clock();
+let dtRender=0, acc=0, lastT=0;
+const FIX=1/240;
+
+function tick(){
+  requestAnimationFrame(tick);
+  const now=performance.now()/1000;
+  const dtReal=Math.min(0.05, now-lastT); lastT=now;
+  dtRender=dtReal;
+  if(paused){renderFrame(); return;}
+  /* физика с фиксированным шагом */
+  acc+=dtReal;
+  let steps=0;
+  while(acc>=FIX&&steps<10){ physicsStep(FIX); acc-=FIX; steps++; }
+  if(steps>=10)acc=0;
+
+  /* ветер по режиму */
+  if(WIND_MODE===1){ S.wind.set(1.6+0.6*Math.sin(now*0.7), 0, 0.5+0.4*Math.sin(now*0.5)); }
+  else if(WIND_MODE===2){ S.wind.set(4.5+1.8*Math.sin(now*0.9), 0, 1.2+1.1*Math.sin(now*0.63)); }
+
+  updateSticks();
+  updateStatus();
+  if(S.state!=='crash')drawForces();
+  updateTelemetry();
+  updateCvUi();
+  updateNavHud();
+  updateBeacon(dtReal);
+  syncDroneMesh();
+  updateScience(dtReal);
+  updateMsgs(dtReal);
+  updateCamera();
+  gates.forEach(g=>{ g.glow.material.opacity=0.2+0.15*Math.sin(performance.now()/400); });
+  renderFrame();
+}
+function renderFrame(){ renderer.render(scene,camera); }
+
+/* ==================== СЕЛЕКТОР МИССИЙ ==================== */
+document.querySelectorAll('#missionSel button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('#missionSel button').forEach(x=>x.classList.remove('sel'));
+    b.classList.add('sel');
+    pendingMiss=+b.dataset.i;
+  });
+});
+let pendingMiss=0;
+document.getElementById('btnGo').addEventListener('click',()=>{
+  document.getElementById('start').style.display='none';
+  loadMission(pendingMiss);
+  pilotLabel();
+});
+
+/* ==================== КОНСТРУКТОР ПОЛЁТНЫХ ЗАДАНИЙ ==================== */
+const progEdit = userProg? JSON.parse(JSON.stringify(userProg)).gates||[] : [];
+let progNameEl=document.getElementById('progName');
+const progRowsEl=document.getElementById('progRows');
+progRowsUI(progEdit, progRowsEl);
+if(progEdit.length) progNameEl.value = (userProg&&userProg.name)?userProg.name:'Моё задание';
+document.getElementById('btnProgAdd').addEventListener('click',()=>{
+  addProgRow(progEdit); progRowsUI(progEdit, progRowsEl);
+});
+document.getElementById('btnProgSave').addEventListener('click',()=>{
+  if(!progEdit.length){showMsg('ПРОГРАММА ПУСТА','warn','Сначала добавьте ворота');return;}
+  try{ localStorage.setItem('dt_prog', JSON.stringify({name:(progNameEl.value||'Моё задание'), gates:progEdit})); logMsg('Программа сохранена в браузере'); beep(660,0.1); }
+  catch(e){ logMsg('Не удалось сохранить (localStorage недоступен)'); }
+});
+document.getElementById('btnProgLoad').addEventListener('click',()=>{
+  if(!userProg||!userProg.gates||!userProg.gates.length){showMsg('НЕТ СОХРАНЁННОЙ ПРОГРАММЫ','warn','Создайте и нажмите «Сохранить»');return;}
+  progEdit.length=0; userProg.gates.forEach(g=>progEdit.push({...g}));
+  progNameEl.value=userProg.name||'Моё задание';
+  progRowsUI(progEdit, progRowsEl);
+});
+document.getElementById('progPreset').addEventListener('change',e=>{
+  const p=PROG_PRESETS.find(x=>x.name===e.target.value);
+  if(!p)return;
+  progEdit.length=0; p.gates.forEach(g=>progEdit.push({...g}));
+  progNameEl.value=p.name;
+  progRowsUI(progEdit, progRowsEl);
+  e.target.value='';
+});
+document.getElementById('btnProgRun').addEventListener('click',()=>{
+  runProgram({name:(progNameEl.value||'Моё задание'), gates:progEdit});
+  pilotLabel();
+});
+document.getElementById('btnPilot').addEventListener('click',cyclePilot);
+
+/* ==================== РЕКОРДЫ ТРЕНИРОВОК ==================== */
+let recs={}; try{ recs=JSON.parse(localStorage.getItem('dt_recs'))||{}; }catch(e){ recs={}; }
+const PILOT_NAME=['РУЧНОЙ','АВТО','CV-АВТО'];
+function recKey(){ return M.custom? ('custom:'+M.name) : ('m'+S.mActive); }
+function renderRecsBox(){
+  const el=document.getElementById('recBox'); if(!el)return;
+  const keys=Object.keys(recs).filter(k=>recs[k]&&recs[k].count>0);
+  if(!keys.length){ el.innerHTML='<span class="empty">Пока нет рекордов — пройдите миссию!</span>'; return; }
+  const MNAMES=['Взлёт+зависание','Кольца','Посадка','Слалом'];
+  const rows=keys.map(k=>{
+    const r=recs[k];
+    let n=k;
+    if(k.indexOf('custom:')===0) n=k.slice(7);
+    else if(/^m\d$/.test(k)) n=MNAMES[+k[1]]||k;
+    n=n.replace(/</g,'&lt;');
+    return '<b>'+n+'</b> — '+r.best.toFixed(1)+' с · побед '+r.count;
+  });
+  el.innerHTML=rows.join('<br>');
+}
+function recordRun(){
+  const k=recKey(), t=(performance.now()-M.tStart)/1000;
+  const r=recs[k]||{best:null,count:0};
+  r.count=(r.count||0)+1;
+  const isRec = r.best==null || t<r.best;
+  if(isRec) r.best=t;
+  r.lastPilot=PILOT; r.lastTime=t;
+  recs[k]=r;
+  try{ localStorage.setItem('dt_recs', JSON.stringify(recs)); }catch(e){}
+  renderRecsBox();
+  logResult('win', t);
+  logMsg((isRec?'🎯 НОВЫЙ РЕКОРД! ':'✅ ')+'«'+M.name+'»: '+t.toFixed(1)+' с ('
+    +PILOT_NAME[PILOT]+') · лучший '+(isRec?t:r.best).toFixed(1)+' с · побед: '+r.count);
+}
+
+/* ==================== ИСТОРИЯ/СТАТИСТИКА ТРЕНИРОВОК ==================== */
+let hist=[]; try{ const h=JSON.parse(localStorage.getItem('dt_hist')); if(Array.isArray(h)) hist=h; }catch(e){}
+function logResult(res, tSec){
+  const t=(tSec!=null)?tSec:(performance.now()-M.tStart)/1000;
+  hist.push({m:String(M.name||'?').slice(0,40), res:res, t:Math.round(t*10)/10, pil:PILOT,
+    n:gates.filter(g=>g.passed).length, at:Date.now()});
+  if(hist.length>300) hist=hist.slice(-300);
+  try{ localStorage.setItem('dt_hist', JSON.stringify(hist)); }catch(e){}
+  renderProg();
+}
+function renderProg(){
+  const st=document.getElementById('progStats'), ls=document.getElementById('progList');
+  if(!st||!ls)return;
+  if(!hist.length){ st.innerHTML='<span class="empty">Пока нет полётов — стартуйте миссию!</span>'; ls.innerHTML=''; return; }
+  const w=hist.filter(h=>h.res==='win').length, tot=hist.length;
+  st.innerHTML='Всего: <b>'+tot+'</b> полётов · побед <b>'+w+'</b> · падений <b>'+(tot-w)+'</b> · винрейт <b>'+Math.round(w/tot*100)+'%</b>';
+  const MO=['','· АВТО','· CV'];
+  ls.innerHTML = hist.slice(-8).reverse().map(h=>{
+    const d=new Date(h.at), ts=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+    const nm=String(h.m).replace(/</g,'&lt;');
+    const ok=h.res==='win';
+    return '<div class="hf '+(ok?'w':'f')+'"><span class="tm">'+ts+'</span><span class="mn">'+nm+'</span>'
+      +(ok&&h.t!=null?' <span>· '+h.t.toFixed(1)+' с</span>':'')
+      +(h.pil>0?' <span class="mo">'+MO[h.pil]+'</span>':'')+'</div>';
+  }).join('');
+}
+function copyReport(){
+  const pts=[];
+  pts.push('3D-ТРЕНАЖЁР ДРОНА — отчёт тренировок');
+  pts.push('Дата: '+new Date().toLocaleString('ru-RU'));
+  const w=hist.filter(h=>h.res==='win').length;
+  pts.push('Полётов: '+hist.length+' · Побед: '+w+' ('+Math.round(w/(hist.length||1)*100)+'%)');
+  const best={};
+  hist.forEach(h=>{ if(h.res==='win'&&(!best[h.m]||h.t<best[h.m])) best[h.m]=h.t; });
+  const bk=Object.keys(best);
+  if(bk.length){ pts.push('Лучшие времена:'); bk.forEach(k=>pts.push('  '+k+' — '+best[k].toFixed(1)+' с')); }
+  pts.push('Последние полёты:');
+  hist.slice(-15).reverse().forEach(h=>{
+    pts.push('  '+new Date(h.at).toLocaleString('ru-RU')+' · '+h.m+' — '+(h.res==='win'?('✅ '+h.t.toFixed(1)+' с'):'💥'));
+  });
+  const txt=pts.join('\n');
+  const done=()=>logMsg('📋 Отчёт скопирован в буфер обмена');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done,()=>fallbackCopy(txt));
+  } else fallbackCopy(txt);
+}
+function fallbackCopy(txt){
+  const ta=document.createElement('textarea');
+  ta.value=txt; ta.style='position:fixed;opacity:0;'; document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); logMsg('📋 Отчёт скопирован в буфер обмена'); }
+  catch(e){ logMsg('Копирование недоступно — текст в консоли'); console.log(txt); }
+  document.body.removeChild(ta);
+}
+document.getElementById('btnCopyRep').addEventListener('click',copyReport);
+
+/* ==================== УКАЗАТЕЛЬ «КУДА ЛЕТЕТЬ» ==================== */
+const bea=new THREE.Mesh(
+  new THREE.ConeGeometry(0.5,1.9,4),
+  new THREE.MeshBasicMaterial({color:0x4fc3f7,transparent:true,opacity:0.85})
+);
+bea.rotation.x=Math.PI;  /* конус смотрит вниз, на кольцо */
+bea.visible=false;
+scene.add(bea);
+function nextGate(){ return gates.find(g=>!g.passed)||null; }
+function updateNavHud(){
+  const el=document.getElementById('navhud'); if(!el)return;
+  const ng=nextGate();
+  if(!ng||S.state!=='mission'){ el.style.opacity=0; return; }
+  const v=new THREE.Vector3(ng.x-S.pos.x, ng.y-S.pos.y, ng.z-S.pos.z);
+  const b=v.clone().applyQuaternion(S.quat.clone().invert());   /* тело дрона: X вперёд, Z вправо */
+  const ang=Math.atan2(b.z,b.x), dist=b.length(), vy=b.y/dist;
+  const ar=document.getElementById('navArr'), inf=document.getElementById('navInf');
+  ar.style.transform='rotate('+(ang*180/Math.PI)+'deg)';
+  el.classList.toggle('near',dist<9);
+  const idx=gates.indexOf(ng);
+  inf.textContent=(vy>0.25?'▲ ':vy<-0.25?'▼ ':'')
+    +dist.toFixed(0)+' м · кольцо '+(ng.label||(idx+1));
+}
+function updateBeacon(dt){
+  const ng=nextGate();
+  if(ng&&S.state==='mission'){
+    bea.visible=true; bea.position.set(ng.x, ng.y+3.4, ng.z);
+    bea.rotation.y+=dt*1.6;
+  } else bea.visible=false;
+}
+
+/* ==================== МИНИ-ТУТОРИАЛ ==================== */
+const tutEl=document.getElementById('tut');
+const tutSteps=Array.prototype.slice.call(tutEl.querySelectorAll('.step'));
+const dotsEl=document.getElementById('tutDots');
+tutSteps.forEach((s,i)=>{ const d=document.createElement('i'); if(i===0)d.className='on'; dotsEl.appendChild(d); });
+let tutI=0;
+function tutSet(i){
+  tutI=Math.max(0,Math.min(tutSteps.length-1,i));
+  tutSteps.forEach((s,k)=>s.classList.toggle('on',k===tutI));
+  Array.prototype.slice.call(dotsEl.children).forEach((c,k)=>c.classList.toggle('on',k===tutI));
+  document.getElementById('tutSt').textContent='Шаг '+(tutI+1)+' из '+tutSteps.length;
+  document.getElementById('tutPrev').disabled = tutI===0;
+  document.getElementById('tutNext').textContent = tutI===tutSteps.length-1? 'Понятно ✓' : 'Дальше →';
+}
+function tutOpen(){ tutEl.classList.add('open'); }
+function tutClose(){ tutEl.classList.remove('open'); try{ localStorage.setItem('dt_tut','1'); }catch(e){} }
+document.getElementById('tutNext').addEventListener('click',()=>{ tutI===tutSteps.length-1 ? tutClose() : tutSet(tutI+1); });
+document.getElementById('tutPrev').addEventListener('click',()=>tutSet(tutI-1));
+tutEl.addEventListener('click',e=>{ if(e.target===tutEl) tutClose(); });
+document.getElementById('btnHelp').addEventListener('click',()=>{ tutSet(0); tutOpen(); });
+(function(){
+  let seen=false; try{ seen=!!localStorage.getItem('dt_tut'); }catch(e){}
+  if(!seen){ tutSet(0); tutOpen(); }
+})();
+renderRecsBox();
+renderProg();
+
+/* манипуляция камерой мышью */
+let down=false,lastX=0,lastY=0;
+addEventListener('pointerdown',e=>{down=true;lastX=e.clientX;lastY=e.clientY;});
+addEventListener('pointermove',e=>{if(down){const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY; if(camMode===1){orbitYaw-=dx*0.008;orbitPitch-=dy*0.005;orbitPitch=clamp(orbitPitch,-0.15,1.3);} } });
+addEventListener('pointerup',()=>down=false);
+addEventListener('wheel',e=>{if(camMode===1)orbitDist=clamp(orbitDist+e.deltaY*0.012,3,40);});
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+
+/* стартовая заставка: массив кадров рендер */
+(function init(){ if(!window.THREE){document.getElementById('logLine').textContent='ОШИБКА: Three.js не загрузился (нет сети)';return;}
+  loadMission(0); S.state='mission';
+  drone.g.position.set(0,0.3,0);
+  tick();
+})();
+</script>
+</body>
+</html>
