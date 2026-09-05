@@ -190,6 +190,24 @@
   .prog .hf .mo{color:var(--warn);font-size:10px;}
   .prog .empty{color:#4a5470;font-style:italic;}
   @media (max-width:640px){ .prog .hf{white-space:normal;} }
+  /* экранные стики (планшет/тач) */
+  #sticksUI{position:fixed;inset:0;z-index:40;pointer-events:none;display:none;}
+  @media (pointer:coarse){ #sticksUI{display:block;} }
+  #sticksUI.menu{display:none !important;}
+  .stick{position:absolute;width:150px;height:150px;border-radius:50%;pointer-events:auto;opacity:.82;
+    background:radial-gradient(circle at center,rgba(255,255,255,.16) 0%,rgba(255,255,255,.05) 55%,rgba(0,0,0,.28) 74%);
+    border:1px solid rgba(255,255,255,.5);box-shadow:inset 0 0 18px rgba(0,0,0,.35);
+    touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;}
+  .stick .knob{position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#ffffff,#c9d4e2);box-shadow:0 3px 10px rgba(0,0,0,.5);}
+  #stickL{left:26px;bottom:26px;}
+  #stickR{right:26px;bottom:26px;}
+  #tbT{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;pointer-events:auto;align-items:center;}
+  #tbT .tbrow{display:flex;gap:7px;}
+  .tbtn{width:54px;height:54px;border-radius:50%;border:1px solid rgba(255,255,255,.55);color:#fff;background:rgba(255,255,255,.16);text-shadow:0 1px 2px rgba(0,0,0,.6);
+    font:600 10px/1.15 'Segoe UI',Arial,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;}
+  .tbtn:active,.tbtn.on{background:rgba(80,180,255,.5);}
 </style>
 </head>
 <body>
@@ -1209,6 +1227,57 @@ addEventListener('keydown',e=>{
 },false);
 addEventListener('keyup',e=>{keys[e.code]=false;},false);
 
+/* экранные стики и тач-кнопки (планшет/телефон) */
+const T={L:{x:0,y:0},R:{x:0,y:0}};
+function bindStick(zone){
+  const base=document.getElementById('stick'+zone), knob=base.querySelector('.knob');
+  let pid=null, cx=0, cy=0, rad=62;
+  function mv(e){
+    if(e.type!=='pointerdown'&&pid!==e.pointerId)return;
+    if(e.type==='pointerdown'&&pid!==null)return;
+    e.stopPropagation(); e.preventDefault();
+    const dx=e.clientX-cx, dy=e.clientY-cy, d=Math.hypot(dx,dy), sc=d>rad?rad/d:1;
+    const ox=dx*sc, oy=dy*sc;
+    knob.style.transform='translate('+ox+'px,'+oy+'px)';
+    T[zone].x=ox/rad; T[zone].y=-oy/rad;
+  }
+  function dn(e){
+    pid=e.pointerId;
+    base.setPointerCapture(pid);
+    const r=base.getBoundingClientRect();
+    cx=r.left+r.width/2; cy=r.top+r.height/2;
+    mv(e);
+  }
+  function up(e){
+    if(pid!==e.pointerId)return;
+    pid=null;
+    knob.style.transform='translate(0,0)';
+    T[zone].x=0; T[zone].y=0;
+  }
+  base.addEventListener('pointerdown',dn);
+  base.addEventListener('pointermove',mv);
+  base.addEventListener('pointerup',up);
+  base.addEventListener('pointercancel',up);
+}
+function bindTouchBtns(){
+  document.querySelectorAll('.tbtn').forEach(b=>{
+    const k=b.getAttribute('data-k');
+    b.addEventListener('pointerdown',e=>{
+      e.preventDefault(); e.stopPropagation();
+      b.classList.add('on');
+      if(k==='Enter'||k.indexOf('Key')===0){
+        document.dispatchEvent(new KeyboardEvent('keydown',{code:k,bubbles:true,cancelable:true}));
+      }
+    });
+    ['pointerup','pointercancel','pointerleave'].forEach(ev=>b.addEventListener(ev,()=>b.classList.remove('on')));
+  });
+}
+if('ontouchstart' in window||navigator.maxTouchPoints>0){
+  const bindTouchUI=()=>{ try{ bindStick('L'); bindStick('R'); bindTouchBtns(); }catch(err){} };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bindTouchUI);
+  else bindTouchUI();
+}
+
 function pollSticks(){
   const L=STICK.L,R=STICK.R;
   /* левый стик: стрелки — газ(вверх плюс) и рыск */
@@ -1228,6 +1297,10 @@ function pollSticks(){
     if(gp.buttons[0]&&gp.buttons[0].pressed&&!gpArmed){S.armed=!S.armed;gpArmed=true;}
     if(!gp.buttons[0]||!gp.buttons[0].pressed)gpArmed=false;
   }
+  /* тач-стики: поверх клавиш/геймпада, если их трогают */
+  const tL=T.L,tR=T.R;
+  if(Math.hypot(tL.x,tL.y)>0.1){ L.x=tL.x; L.y=tL.y; }
+  if(Math.hypot(tR.x,tR.y)>0.1){ R.x=tR.x; R.y=tR.y; }
   return {L,R};
 }
 let gpArmed=false;
@@ -1369,6 +1442,8 @@ function tick(){
   const now=performance.now()/1000;
   const dtReal=Math.min(0.05, now-lastT); lastT=now;
   dtRender=dtReal;
+  const sui=document.getElementById('sticksUI');
+  if(sui)sui.classList.toggle('menu', document.getElementById('start').style.display!=='none');
   if(paused){renderFrame(); return;}
   /* физика с фиксированным шагом */
   acc+=dtReal;
@@ -1608,5 +1683,21 @@ function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
   tick();
 })();
 </script>
+<div id="sticksUI" class="menu">
+  <div class="stick" id="stickL"><div class="knob"></div></div>
+  <div class="stick" id="stickR"><div class="knob"></div></div>
+  <div id="tbT">
+    <div class="tbrow">
+      <button class="tbtn" data-k="KeyB">⚙<br>моторы</button>
+      <button class="tbtn" data-k="KeyH">H<br>высота</button>
+      <button class="tbtn" data-k="KeyV">V<br>режим</button>
+    </div>
+    <div class="tbrow">
+      <button class="tbtn" data-k="KeyC">C<br>камера</button>
+      <button class="tbtn" data-k="KeyX">X<br>ветер</button>
+      <button class="tbtn" data-k="Enter">⟳<br>старт</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
