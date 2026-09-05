@@ -202,6 +202,7 @@
     background:radial-gradient(circle at 35% 30%,#ffffff,#c9d4e2);box-shadow:0 3px 10px rgba(0,0,0,.5);}
   #stickL{left:26px;bottom:26px;}
   #stickR{right:26px;bottom:26px;}
+  @media (pointer:coarse){ #piks{bottom:215px;} #rc{bottom:215px;} }
   #tbT{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;pointer-events:auto;align-items:center;}
   #tbT .tbrow{display:flex;gap:7px;}
   .tbtn{width:54px;height:54px;border-radius:50%;border:1px solid rgba(255,255,255,.55);color:#fff;background:rgba(255,255,255,.16);text-shadow:0 1px 2px rgba(0,0,0,.6);
@@ -430,7 +431,7 @@ for (let i=0;i<6;i++){
 /* Стартовая площадка */
 const pad = new THREE.Mesh(new THREE.CylinderGeometry(2.4,2.4,0.18,40), new THREE.MeshStandardMaterial({color:0xffd23e, roughness:.7}));
 pad.position.y=0.09; pad.receiveShadow=true; scene.add(pad);
-const padMark = new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,0.2,20), new THREE.MeshStandardMaterial({color:0xe11, emissive:0x440000}));
+const padMark = new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,0.04,20), new THREE.MeshStandardMaterial({color:0xe11, emissive:0x440000}));
 padMark.position.y=0.16; scene.add(padMark);
 
 /* ==================== ДРОН ==================== */
@@ -811,9 +812,11 @@ function physicsStep(dt){
   /* ---- 11. ЗЕМЛЯ ---- */
   const e2=eulFromQuat(S.quat);
   const tilt=Math.hypot(Math.abs(e2.phi),Math.abs(e2.theta));
-  if (S.pos.y < 0.04){
+  const overPad = Math.hypot(S.pos.x,S.pos.z) < 2.4;   /* над старт. площадкой дрон стоит НА подиуме */
+  const floorY = overPad ? 0.18 : 0.04;                /* верх жёлтого подиума 0.18, иначе земля 0 */
+  if (S.pos.y < floorY){
     const vyImpact = S.vel.y;        /* запоминаем ДО гашения вертикальной скорости */
-    S.pos.y=0.04;
+    S.pos.y = floorY;
     if (S.vel.y<0) S.vel.y=0;
     if (Math.abs(S.vel.x)>3.2 || Math.abs(S.vel.z)>3.2){
       S.vel.x*=0.2; S.vel.z*=0.2;
