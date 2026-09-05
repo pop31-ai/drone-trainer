@@ -1,5 +1,8 @@
 # 3D-Тренажёр дрона
 
+![CI](https://github.com/pop31-ai/drone-trainer/actions/workflows/ci.yml/badge.svg?branch=main)
+[![Pages](https://img.shields.io/badge/Pages-online-3ddc84)](https://pop31-ai.github.io/drone-trainer/)
+
 Физически адекватный квадрокоптер: ПИД-регулятор, тяга винтов, инерция, сопротивление воздуха. Весь тренажёр — один файл `index.html`.
 
 ## 🚀 Запуск
